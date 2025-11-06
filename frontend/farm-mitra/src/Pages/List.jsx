@@ -427,32 +427,7 @@ const AgriculturalWasteAnalyzer = () => {
               </button>
             </div>
 
-            <div style={styles.apiSection}>
-              <details>
-                <summary style={styles.detailsToggle}>
-                  🔑 Use Real AI (OpenAI API)
-                </summary>
-                <div style={{ marginTop: '16px' }}>
-                  <input
-                    type="password"
-                    style={styles.input}
-                    placeholder="Enter your OpenAI API key (sk-...)"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
-                  <button
-                    onClick={handleRealAIAnalysis}
-                    disabled={loading || !apiKey}
-                    style={{
-                      ...styles.apiButton,
-                      ...(loading || !apiKey ? { backgroundColor: '#9ca3af', cursor: 'not-allowed' } : {})
-                    }}
-                  >
-                    Real AI Analysis
-                  </button>
-                </div>
-              </details>
-            </div>
+           
           </div>
 
           <div>
@@ -518,15 +493,7 @@ const AgriculturalWasteAnalyzer = () => {
               </div>
             )}
 
-            <div style={styles.infoBox}>
-              <h4 style={styles.infoTitle}>💡 How it works:</h4>
-              <ul style={styles.infoList}>
-                <li>Demo mode uses sample data for common waste types</li>
-                <li>Real AI mode requires your OpenAI API key</li>
-                <li>Analysis includes market prices, processing methods, and environmental impact</li>
-                <li>Recommendations are based on waste type and quantity</li>
-              </ul>
-            </div>
+            
           </div>
         </div>
       </div>
