@@ -1,0 +1,14 @@
+.custom-button {
+  background-color: #04AA6D; /* Green background */
+  color: white;              /* White text */
+  padding: 12px 24px;        /* Some padding */
+  border: none;              /* Remove borders */
+  border-radius: 4px;        /* Rounded corners */
+  cursor: pointer;           /* Pointer/hand icon on hover */
+  font-size: 16px;           /* Increase font size */
+  transition: background-color 0.3s ease; /* Smooth transition */
+}
+
+.custom-button:hover {
+  background-color: #038e5a; /* Darker green on hover */
+}

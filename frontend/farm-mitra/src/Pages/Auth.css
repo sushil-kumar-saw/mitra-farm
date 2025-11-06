@@ -1,0 +1,168 @@
+
+:root {
+  --green-100: #e6ffe6;
+  --green-200: #d3f9d8;
+  --green-300: #b3e6b3;
+  --green-700: #2e8b57;
+  --white: #ffffff;
+  --red-600: #e53935;
+}
+
+.auth-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--green-100), var(--green-200), var(--green-300));
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease-in-out infinite;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.bg-grass {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.bg-grass li {
+  position: absolute;
+  display: block;
+  width: 10px;
+  height: 40px;
+  background: linear-gradient(to top, #76b947 0%, #4caf50 100%);
+  border-radius: 50% 50% 0 0;
+  animation: sway 4s ease-in-out infinite;
+  bottom: -10px;
+  transform-origin: bottom;
+}
+
+.bg-grass li:nth-child(odd) { animation-duration: 3s; }
+.bg-grass li:nth-child(even) { animation-duration: 5s; }
+.bg-grass li:nth-child(3n) { width: 8px; height: 30px; background: #6fae4a; }
+
+@keyframes sway {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.form-box {
+  position: relative;
+  z-index: 2;
+  width: 380px;
+  padding: 48px 40px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(46, 139, 87, 0.25);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.form-box:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 14px 40px rgba(46, 139, 87, 0.35);
+}
+
+.fun-theme::before {
+  content: "🌾";
+  position: absolute;
+  top: -30px;
+  left: -30px;
+  font-size: 56px;
+  animation: wiggle 4s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.form-title {
+  text-align: center;
+  color: var(--green-700);
+  margin-bottom: 28px;
+  font-weight: 800;
+  font-size: 1.6rem;
+}
+
+.role-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.role-toggle button {
+  padding: 10px 22px;
+  border: 2px solid var(--green-700);
+  background: transparent;
+  color: var(--green-700);
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.role-toggle .active,
+.role-toggle button:hover {
+  background-color: var(--green-700);
+  color: var(--white);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  border: 1px solid #cfe8ce;
+  border-radius: 14px;
+  font-size: 1rem;
+  outline: none;
+  background: #f4fff4;
+  transition: border 0.3s;
+}
+
+input:focus {
+  border-color: var(--green-700);
+}
+
+.submit-button {
+  width: 100%;
+  padding: 14px;
+  background: var(--green-700);
+  color: var(--white);
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: background 0.3s;
+}
+
+.submit-button:hover {
+  background: #216943;
+}
+
+.error-message {
+  color: var(--red-600);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+}

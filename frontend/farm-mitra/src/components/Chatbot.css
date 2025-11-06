@@ -1,0 +1,17 @@
+/* Chatbot.css */
+
+.chatbot-button {
+  background-color: #2563eb; /* Equivalent to Tailwind's bg-blue-600 */
+  color: white;              /* Equivalent to Tailwind's text-white */
+  font-weight: 600;          /* Equivalent to Tailwind's font-semibold */
+  padding: 0.5rem 1rem;      /* Equivalent to Tailwind's py-2 px-4 */
+  border: none;
+  border-radius: 0.5rem;     /* Equivalent to Tailwind's rounded-lg */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to Tailwind's shadow-md */
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.chatbot-button:hover {
+  background-color: #1d4ed8; /* Equivalent to Tailwind's hover:bg-blue-700 */
+}
