@@ -21,104 +21,138 @@ const FarmMitraLearningHub = () => {
     { id: 'certification', name: 'Certification', icon: Award }
   ];
 
-  const learningContent = [
-    {
-      id: 1,
-      title: 'How to Monetize Rice Husk Waste',
-      category: 'waste-management',
-      type: 'video',
-      duration: '12 minutes',
-      difficulty: 'Beginner',
-      description: 'Learn profitable ways to convert rice husk into valuable products instead of burning it',
-      thumbnail: '🌾',
-      content: 'Rice husk is a valuable resource that can be utilized in multiple ways to generate income...',
-      tags: ['rice-husk', 'monetization', 'income']
-    },
-    {
-      id: 2,
-      title: 'Converting Sugarcane Bagasse to Biofuel',
-      category: 'valorization',
-      type: 'tutorial',
-      duration: '8 minutes',
-      difficulty: 'Intermediate',
-      description: 'Step-by-step process to transform sugarcane bagasse into profitable biofuel',
-      thumbnail: '🎋',
-      content: 'Converting sugarcane bagasse to biofuel can be a profitable venture with the right techniques...',
-      tags: ['sugarcane', 'biofuel', 'technology']
-    },
-    {
-      id: 3,
-      title: 'Earning Carbon Credits from Farm Waste',
-      category: 'carbon-farming',
-      type: 'guide',
-      duration: '15 minutes',
-      difficulty: 'Advanced',
-      description: 'Complete guide to earning carbon credits through sustainable waste management',
-      thumbnail: '🌱',
-      content: 'Carbon credits represent a new income stream that rewards environmental conservation...',
-      tags: ['carbon-credits', 'sustainability', 'environment']
-    },
-    {
-      id: 4,
-      title: 'Using the FarmMitra Marketplace',
-      category: 'marketplace',
-      type: 'tutorial',
-      duration: '10 minutes',
-      difficulty: 'Beginner',
-      description: 'Learn how to effectively sell your agricultural waste on the digital platform',
-      thumbnail: '💻',
-      content: 'Master the FarmMitra marketplace to successfully register and sell your products...',
-      tags: ['marketplace', 'digital', 'selling']
-    },
-    {
-      id: 5,
-      title: 'Making High-Quality Organic Compost',
-      category: 'valorization',
-      type: 'guide',
-      duration: '20 minutes',
-      difficulty: 'Intermediate',
-      description: 'Transform agricultural waste into premium organic fertilizer for better profits',
-      thumbnail: '🌿',
-      content: 'Creating organic compost is an art that combines proper technique with patience...',
-      tags: ['organic', 'compost', 'fertilizer']
-    },
-    {
-      id: 6,
-      title: 'Obtaining Organic Certification',
-      category: 'certification',
-      type: 'guide',
-      duration: '18 minutes',
-      difficulty: 'Advanced',
-      description: 'Navigate the process of getting organic certification for your products',
-      thumbnail: '📜',
-      content: 'Organic certification enhances the quality and market value of your products...',
-      tags: ['certification', 'organic', 'quality']
-    },
-    {
-      id: 7,
-      title: 'Straw-to-Energy Conversion Techniques',
-      category: 'valorization',
-      type: 'video',
-      duration: '14 minutes',
-      difficulty: 'Intermediate',
-      description: 'Explore modern methods to convert crop residues into renewable energy',
-      thumbnail: '⚡',
-      content: 'Agricultural residues can be converted into clean energy using various technologies...',
-      tags: ['straw', 'energy', 'renewable']
-    },
-    {
-      id: 8,
-      title: 'Building a Sustainable Supply Chain',
-      category: 'marketplace',
-      type: 'guide',
-      duration: '16 minutes',
-      difficulty: 'Advanced',
-      description: 'Create efficient logistics for your agricultural waste business',
-      thumbnail: '🚛',
-      content: 'A well-structured supply chain is crucial for scaling your waste valorization business...',
-      tags: ['supply-chain', 'logistics', 'business']
-    }
-  ];
+const learningContent = [
+  {
+    id: 1,
+    title: 'From Rice Husk Ash to Silica Gold: How India’s Hidden Waste is Transformed',
+    category: 'waste-management',
+    type: 'video',
+    duration: '≈ 8 minutes',
+    difficulty: 'Intermediate',
+    description: 'See how rice husk ash is converted into high-value silica for cement, rubber and building materials.',
+    thumbnail: '🌾',
+    content: 'Explains the industrial process of converting rice husk ash into silica and other valuable materials.',
+    tags: ['rice-husk', 'silica', 'waste-valorization'],
+    link: 'https://www.youtube.com/watch?v=yMqfp_kBbV4'
+  },
+  {
+    id: 2,
+    title: 'Make Products from Waste Rice Husk: Biodegradable Plates & Cups',
+    category: 'waste-management',
+    type: 'video',
+    duration: '≈ 6 minutes',
+    difficulty: 'Beginner',
+    description: 'Demonstration of converting rice husk waste into biodegradable plates and cups.',
+    thumbnail: '🌿',
+    content: 'Video shows how rice husk waste is repurposed into eco-friendly disposable tableware.',
+    tags: ['rice-husk', 'biodegradable', 'product-design'],
+    link: 'https://www.youtube.com/watch?v=d1ATcOMHTSI'
+  },
+  {
+    id: 3,
+    title: 'How to Earn Money from Waste Rice Husk | Converting Waste Agricultural Biomass',
+    category: 'waste-management',
+    type: 'video',
+    duration: '≈ 10 minutes',
+    difficulty: 'Beginner',
+    description: 'Entrepreneurial video on setting up a project converting rice husk into value products like particleboard.',
+    thumbnail: '📦',
+    content: 'Shows step-by-step how rice husk can be used to produce particle boards and generate income.',
+    tags: ['rice-husk', 'entrepreneurship', 'particleboard'],
+    link: 'https://www.youtube.com/watch?v=sfWKaMQvQzA'
+  },
+  {
+    id: 4,
+    title: 'From Waste to Resources: Amazing Process Recycling Bagasse',
+    category: 'valorization',
+    type: 'video',
+    duration: '≈ 7 minutes',
+    difficulty: 'Intermediate',
+    description: 'Explores the recycling process of sugarcane bagasse as part of circular economy solutions.',
+    thumbnail: '🎋',
+    content: 'Detailed look at bagasse recycling and the production of value-added materials.',
+    tags: ['bagasse', 'circular-economy', 'valorization'],
+    link: 'https://www.youtube.com/watch?v=_9XcFkELn9g'
+  },
+  {
+    id: 5,
+    title: 'Environmental Benefits of Using Sugarcane Bagasse By-products',
+    category: 'valorization',
+    type: 'video',
+    duration: '≈ 5 minutes',
+    difficulty: 'Beginner',
+    description: 'Short video discussing how bagasse-based by-products reduce environmental impact in India.',
+    thumbnail: '🌱',
+    content: 'Shows case studies of bagasse utilization and its environmental effects.',
+    tags: ['bagasse', 'environment', 'by-product'],
+    link: 'https://www.youtube.com/watch?v=KIBXXsJO4D8'
+  },
+  {
+    id: 6,
+    title: 'Rice Husk to Particle Board Business in India | Low Cost Mill Setup',
+    category: 'waste-management',
+    type: 'video',
+    duration: '≈ 9 minutes',
+    difficulty: 'Intermediate',
+    description: 'Business-model video for converting rice husk into particle board in India.',
+    thumbnail: '🏭',
+    content: 'Walkthrough of setting up a mini mill, machinery, and cost structure for rice-husk particle boards.',
+    tags: ['rice-husk', 'business-model', 'manufacturing'],
+    link: 'https://www.youtube.com/watch?v=ttLE5b2zZsk'
+  },
+  {
+    id: 7,
+    title: 'How Plates Made From Sugarcane Could Help India’s Plastic Problem',
+    category: 'valorization',
+    type: 'video',
+    duration: '≈ 8 minutes',
+    difficulty: 'Beginner',
+    description: 'Video on making sugarcane bagasse plates as eco-friendly alternatives to plastic disposables.',
+    thumbnail: '🍽️',
+    content: 'Demonstrates manufacturing of disposable plates from sugarcane bagasse waste and their benefits.',
+    tags: ['bagasse', 'eco-friendly', 'plastic-alternative'],
+    link: 'https://www.youtube.com/watch?v=HcqCWiGyDvw'
+  },
+  {
+    id: 8,
+    title: 'Sugarcane Byproducts Industry – Business Opportunities & Value Chains',
+    category: 'marketplace',
+    type: 'video',
+    duration: '≈ 11 minutes',
+    difficulty: 'Intermediate',
+    description: 'Business insight into the sugarcane by-products industry and value-chain opportunities.',
+    thumbnail: '💼',
+    content: 'Video covers how sugarcane by-products create new business streams beyond sugar production.',
+    tags: ['sugarcane', 'by-products', 'business'],
+    link: 'https://www.youtube.com/watch?v=rjnAGO2y5uc'
+  },
+  {
+    id: 9,
+    title: 'Nature Files: Bagasse – A Cost-Efficient Energy Source',
+    category: 'carbon-farming',
+    type: 'video',
+    duration: '≈ 6 minutes',
+    difficulty: 'Beginner',
+    description: 'Short film explaining how sugarcane bagasse is used as a renewable energy source in India.',
+    thumbnail: '⚡',
+    content: 'Illustrates power generation from bagasse and how it can reduce carbon footprints.',
+    tags: ['bagasse', 'energy', 'renewable'],
+    link: 'https://www.youtube.com/watch?v=SDmgkBy12uY'
+  },
+  {
+    id: 10,
+    title: 'Turning Rice Waste into Organic Fertilizer in East Africa',
+    category: 'valorization',
+    type: 'video',
+    duration: '≈ 7 minutes',
+    difficulty: 'Beginner',
+    description: 'Documentary-style video showing farmers turning rice husk waste into compost and fertilizer in Kenya.',
+    thumbnail: '🌍',
+    content: 'Highlights how rice husk waste can be converted into organic fertilizer and used in farming in East Africa.',
+    tags: ['rice-husk', 'organic-fertilizer', 'farm-impact'],
+    link: 'https://www.youtube.com/watch?v=B1CpC7JXiEk'
+  }
+];
 
   const filteredContent = learningContent.filter(item => {
     const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
@@ -150,7 +184,16 @@ const handleSendMessage = async () => {
             {
               parts: [
                 {
-                  text: `Respond only to farming-related queries. User query: "${userMessage}"`,
+                  text: `You are FarmMitra, a friendly AI assistant that helps farmers with agriculture, crops, soil, fertilizers, irrigation, weather, and government farming schemes.
+- If the user greets you (like "hi", "hello", "hey"), respond warmly and introduce yourself, e.g.:
+  "Hello! 👋 I’m FarmMitra, your farming assistant. How can I help you today?"
+- If the user says "help", explain briefly what you can do (for example: "I can answer questions about crops, soil health, irrigation, fertilizers, or government schemes.").
+- If the query is unrelated to farming or small talk, politely redirect the user by saying:
+  "I can best assist with farming-related questions. Could you please ask something related to crops, soil, or agriculture?"
+- Keep answers short, clear, and easy to understand for farmers.
+- Always be polite, encouraging, and helpful.
+
+User query: "${userMessage}"`,
                 },
               ],
             },
@@ -447,25 +490,34 @@ const handleSendMessage = async () => {
                   ))}
                 </div>
 
-                <button style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}>
+               <a 
+                href={item.link} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ textDecoration: 'none' }}
+              >
+                <button
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
                   Start Learning
                   <ChevronRight size={16} />
                 </button>
+              </a>
               </div>
             );
           })}

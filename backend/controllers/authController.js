@@ -1,8 +1,23 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 import User from "../models/user.js";
 import Farmer from "../models/Farmer.js";
 import Buyer from "../models/Buyer.js";
+
+// Load environment variables
+dotenv.config();
+
+// Helper function to get JWT_SECRET at runtime
+const getJWTSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('JWT_SECRET is missing from environment variables');
+    // Use a fallback for development (not recommended for production)
+    return process.env.NODE_ENV === 'production' ? null : 'fallback-secret-key-change-in-production';
+  }
+  return secret;
+};
 
 export const register = async (req, res) => {
   const { name, email, password, role } = req.body;
@@ -66,8 +81,8 @@ export const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Role does not match user' });
     }
 
-    // Get JWT_SECRET inside function (runtime)
-    const JWT_SECRET = process.env.JWT_SECRET;
+    // Get JWT_SECRET at runtime
+    const JWT_SECRET = getJWTSecret();
     if (!JWT_SECRET) {
       console.error("JWT_SECRET is missing");
       return res.status(500).json({ success: false, message: 'Server configuration error' });
@@ -101,7 +116,7 @@ export const verify = async (req, res) => {
       return res.status(401).json({ success: false, message: 'No token provided' });
     }
 
-    const JWT_SECRET = process.env.JWT_SECRET;
+    const JWT_SECRET = getJWTSecret();
     if (!JWT_SECRET) {
       return res.status(500).json({ success: false, message: 'Server configuration error' });
     }

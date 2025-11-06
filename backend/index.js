@@ -14,12 +14,18 @@ import communityRoutes from "./routes/community.js";
 
 const app = express();
 
-// Your environment check log here (optional)
-console.log('Environment check:', {
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  MONGO_URI: process.env.MONGO_URI ? 'exists' : 'missing',
-  JWT_SECRET: process.env.JWT_SECRET ? 'exists' : 'missing'
-});
+// Environment check log
+console.log('\n=== Environment Check ===');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('MONGO_URI:', process.env.MONGO_URI ? '✅ Set' : '❌ Missing');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✅ Set' : '❌ Missing');
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'http://localhost:5173');
+console.log('========================\n');
+
+if (!process.env.JWT_SECRET) {
+  console.error('⚠️  WARNING: JWT_SECRET is missing! Authentication will fail.');
+  console.error('Please add JWT_SECRET to your .env file');
+}
 
 // ... rest of your setup (CORS, middleware, routes, etc.)
 

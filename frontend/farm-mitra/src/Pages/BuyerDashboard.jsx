@@ -1,22 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, Leaf, TrendingUp, ShoppingCart, Bell, User, BarChart3, Settings,
-  Star, Heart
+  Heart, MessageCircle, CreditCard
 } from 'lucide-react';
 import ButtonList from '../components/AnalyticButton';
+import LogoutButton from '../components/Logout';
 
-const LogoutButton = () => (
-  <button style={{
-    padding: '8px 16px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer'
-  }}>
-    Logout
-  </button>
-);
+// Helper function to get default image path for waste type
+const getDefaultImage = (wasteType) => {
+  if (!wasteType) return '/images/istockphoto-607884592-612x612.jpg';
+  
+  const type = wasteType.toLowerCase().trim();
+  
+  // Map to actual image files in public/images folder
+  if (type.includes('rice husk') || type === 'rice husk' || type.includes('rice')) {
+    return '/images/istockphoto-607884592-612x612.jpg'; // Generic rice/wheat image
+  }
+  if (type.includes('wheat straw') || type === 'wheat straw' || type.includes('wheat')) {
+    return '/images/wheat-straw.jpg';
+  }
+  if (type.includes('sugarcane bagasse') || type.includes('bagasse') || type.includes('sugarcane')) {
+    return '/images/sugar-cane.jpg';
+  }
+  if (type.includes('cotton stalks') || type.includes('cotton')) {
+    return '/images/cotton.jpg';
+  }
+  if (type.includes('corn cob') || type.includes('corn')) {
+    return '/images/corn.jpg';
+  }
+  
+  // Default fallback
+  return '/images/istockphoto-607884592-612x612.jpg';
+};
+
+// Helper function to normalize image path
+const normalizeImagePath = (imagePath) => {
+  if (!imagePath) return getDefaultImage('');
+  
+  // Convert database paths to frontend paths
+  if (typeof imagePath === 'string') {
+    if (imagePath.includes('./public/images/')) {
+      return imagePath.replace('./public/images/', '/images/');
+    }
+    if (imagePath.includes('public/images/')) {
+      return imagePath.replace('public/images/', '/images/');
+    }
+    // If it's already a valid path (starts with / or http), use it
+    if (imagePath.startsWith('/') || imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    // If it's an emoji, return default
+    if (imagePath === '🌾' || imagePath === '🎋' || imagePath === '🌿' || imagePath === '🌽') {
+      return getDefaultImage('');
+    }
+  }
+  
+  return imagePath;
+};
 
 const BuyerDashboard = () => {
   const [activeTab, setActiveTab] = useState('marketplace');
@@ -27,10 +67,15 @@ const BuyerDashboard = () => {
   const [activeTrans, setActiveTrans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
+  const [cart, setCart] = useState([]); // Items in checkout cart
   const [wasteListings, setWasteListings] = useState([]);
   const [purchases, setPurchases] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
   const [error, setError] = useState("");
   const [buyingListingId, setBuyingListingId] = useState(null);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [selectedListingForInquiry, setSelectedListingForInquiry] = useState(null);
+  const [inquiryMessage, setInquiryMessage] = useState("");
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
@@ -40,16 +85,26 @@ const BuyerDashboard = () => {
       const response = await fetch(`${API_BASE_URL}/buyer/dashboard/stats`, {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch stats');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch stats: ${response.status}`);
+      }
+      
       const data = await response.json();
-      if (data.success) {
-        setCarbonSaved(data.stats.carbonSaved);
-        setTotalPurchases(data.stats.totalPurchases);
-        setActiveTrans(data.stats.activeTransactions);
+      
+      if (data.success && data.stats) {
+        setCarbonSaved(data.stats.carbonSaved || 0);
+        setTotalPurchases(data.stats.totalPurchases || 0);
+        setActiveTrans(data.stats.activeTransactions || 0);
+        // Clear error if successful
+        setError(prev => prev.includes('stats') ? '' : prev);
+      } else {
+        setError(prev => prev.includes('stats') ? prev : (data.message || 'Failed to load dashboard stats'));
       }
     } catch (err) {
       console.error('Error fetching buyer stats:', err);
-      setError('Failed to load dashboard stats');
+      setError(`Failed to load dashboard stats: ${err.message}`);
     }
   };
 
@@ -59,30 +114,58 @@ const BuyerDashboard = () => {
       const response = await fetch(`${API_BASE_URL}/buyer/marketplace`, {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch listings');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch listings: ${response.status}`);
+      }
+      
       const data = await response.json();
-      if (data.success) {
+      
+      if (data.success && data.listings) {
         // Transform API data to match component format
-        const transformedListings = data.listings.map((listing, idx) => ({
-          id: listing._id || idx + 1,
-          _id: listing._id,
-          farmer: listing.farmerName || (listing.farmerId?.name || 'Unknown'),
-          location: listing.location,
-          wasteType: listing.wasteType,
-          quantity: listing.quantity,
-          price: listing.price,
-          carbonSaving: listing.carbonSaving || listing.co2Footprint || '0 kg CO₂',
-          image: listing.image || './public/images/istockphoto-607884592-612x612.jpg',
-          rating: listing.rating || 4.5,
-          distance: listing.distance || 'N/A',
-          freshness: listing.createdAt ? new Date(listing.createdAt).toLocaleDateString() : 'Unknown',
-          tags: listing.tags || []
-        }));
+        const transformedListings = (data.listings || []).map((listing, idx) => {
+          // Normalize image path
+          let imageUrl = normalizeImagePath(listing.image);
+          
+          // If still not a valid path, use default based on waste type
+          if (!imageUrl || (!imageUrl.startsWith('/') && !imageUrl.startsWith('http'))) {
+            imageUrl = getDefaultImage(listing.wasteType);
+          }
+          
+          return {
+            id: listing._id || idx + 1,
+            _id: listing._id,
+            farmer: listing.farmerName || (listing.farmerId?.name || listing.farmer || 'Unknown Farmer'),
+            location: listing.location || 'Not specified',
+            wasteType: listing.wasteType || 'Unknown',
+            quantity: listing.quantity || 'N/A',
+            price: listing.price || 'N/A',
+            carbonSaving: listing.carbonSaving || listing.co2Footprint || '0 kg CO₂',
+            image: imageUrl,
+            freshness: listing.createdAt ? new Date(listing.createdAt).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            }) : 'Unknown',
+            tags: listing.tags || [],
+            description: listing.description || '',
+            category: listing.category || '',
+            expectedProcess: listing.expectedProcess || '',
+            inquiries: listing.inquiries || 0,
+            status: listing.status || 'Active'
+          };
+        });
         setWasteListings(transformedListings);
+        // Clear error if successful
+        setError(prev => prev.includes('marketplace') ? '' : prev);
+        console.log(`✅ Loaded ${transformedListings.length} marketplace listings`);
+      } else {
+        setError(prev => prev.includes('marketplace') ? prev : (data.message || 'Failed to load marketplace listings'));
       }
     } catch (err) {
       console.error('Error fetching marketplace listings:', err);
-      setError('Failed to load marketplace listings');
+      setError(`Failed to load marketplace listings: ${err.message}`);
     }
   };
 
@@ -92,27 +175,81 @@ const BuyerDashboard = () => {
       const response = await fetch(`${API_BASE_URL}/buyer/purchases`, {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch purchases');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch purchases: ${response.status}`);
+      }
+      
       const data = await response.json();
+      
       if (data.success) {
-        setPurchases(data.purchases);
+        setPurchases(data.purchases || []);
+        // Clear error if successful
+        setError(prev => prev.includes('purchases') ? '' : prev);
+        console.log(`✅ Loaded ${data.purchases?.length || 0} purchases`);
+      } else {
+        setError(prev => prev.includes('purchases') ? prev : (data.message || 'Failed to load purchases'));
       }
     } catch (err) {
       console.error('Error fetching purchases:', err);
-      setError('Failed to load purchases');
+      setError(`Failed to load purchases: ${err.message}`);
+    }
+  };
+
+  // Fetch inquiries
+  const fetchInquiries = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/buyer/inquiries`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch inquiries: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setInquiries(data.inquiries || []);
+      }
+    } catch (err) {
+      console.error('Error fetching inquiries:', err);
     }
   };
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchStats(), fetchMarketplaceListings(), fetchPurchases()]);
-      setIsLoading(false);
+      setError(''); // Clear any previous errors
+      try {
+        await Promise.all([fetchStats(), fetchMarketplaceListings(), fetchPurchases(), fetchInquiries()]);
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);
 
-  // Handle purchase
+  // Add to cart
+  const addToCart = (listing) => {
+    if (cart.find(item => item._id === listing._id)) {
+      alert('Item already in cart!');
+      return;
+    }
+    setCart([...cart, listing]);
+    alert('Added to cart!');
+  };
+
+  // Remove from cart
+  const removeFromCart = (listingId) => {
+    setCart(cart.filter(item => item._id !== listingId));
+  };
+
+  // Handle purchase from cart
   const handlePurchase = async (listingId) => {
     if (!listingId) return;
     
@@ -133,6 +270,8 @@ const BuyerDashboard = () => {
       const data = await response.json();
       
       if (data.success) {
+        // Remove from cart
+        removeFromCart(listingId);
         // Refresh data
         await Promise.all([fetchStats(), fetchMarketplaceListings(), fetchPurchases()]);
         setError('');
@@ -143,6 +282,41 @@ const BuyerDashboard = () => {
       setError(err.message || 'Failed to purchase listing');
     } finally {
       setBuyingListingId(null);
+    }
+  };
+
+  // Handle inquiry submission
+  const handleSubmitInquiry = async () => {
+    if (!inquiryMessage.trim() || !selectedListingForInquiry) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/buyer/inquiries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          listingId: selectedListingForInquiry._id,
+          message: inquiryMessage
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send inquiry');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setShowInquiryModal(false);
+        setInquiryMessage('');
+        setSelectedListingForInquiry(null);
+        await fetchInquiries();
+        alert('Inquiry sent successfully!');
+      }
+    } catch (err) {
+      console.error('Error sending inquiry:', err);
+      setError(err.message || 'Failed to send inquiry');
     }
   };
 
@@ -345,7 +519,8 @@ const BuyerDashboard = () => {
   const listingImageStyle = {
     width: '100%',
     height: '200px',
-    objectFit: 'cover'
+    objectFit: 'cover',
+    backgroundColor: '#e8f5e8'
   };
 
   const listingDetailsStyle = {
@@ -455,9 +630,11 @@ const BuyerDashboard = () => {
       <nav style={navTabsStyle}>
         {[
           { id: 'marketplace', label: 'Marketplace', icon: Search },
+          { id: 'favorites', label: 'Favorites', icon: Heart },
+          { id: 'checkout', label: 'Checkout', icon: CreditCard, badge: cart.length },
+          { id: 'inquiries', label: 'My Inquiries', icon: MessageCircle },
           { id: 'orders', label: 'My Purchases', icon: ShoppingCart },
-          { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-          { id: 'settings', label: 'Settings', icon: Settings }
+          { id: 'analytics', label: 'Analytics', icon: BarChart3 }
         ].map(tab => (
           <button
             key={tab.id}
@@ -466,6 +643,22 @@ const BuyerDashboard = () => {
           >
             <tab.icon size={16} />
             <span>{tab.label}</span>
+            {tab.badge > 0 && (
+              <span style={{
+                backgroundColor: '#ef4444',
+                color: 'white',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                marginLeft: '8px'
+              }}>
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -511,60 +704,6 @@ const BuyerDashboard = () => {
               ))}
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'block', 
-                fontWeight: 'bold', 
-                marginBottom: '12px',
-                color: '#374151'
-              }}>
-                Distance
-              </label>
-              <select style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px'
-              }}>
-                <option>Any distance</option>
-                <option>Within 10 km</option>
-                <option>Within 25 km</option>
-                <option>Within 50 km</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontWeight: 'bold', 
-                marginBottom: '12px',
-                color: '#374151'
-              }}>
-                Price Range
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="number" 
-                  placeholder="Min" 
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px'
-                  }}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Max" 
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px'
-                  }}
-                />
-              </div>
-            </div>
           </aside>
 
           <section style={listingsSectionStyle}>
@@ -588,10 +727,30 @@ const BuyerDashboard = () => {
               />
             </div>
 
-            {filteredListings.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '18px' }}>
-                No listings found.
-              </p>
+            {isLoading ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+                <Leaf size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <p>Loading marketplace listings...</p>
+              </div>
+            ) : error && error.includes('marketplace') ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#dc2626' }}>
+                <p style={{ marginBottom: '8px', fontWeight: '500' }}>⚠️ {error}</p>
+                <button 
+                  onClick={() => {
+                    setError('');
+                    fetchMarketplaceListings();
+                  }}
+                  style={{ ...favoriteButtonStyle(false), backgroundColor: '#16a34a', color: 'white', marginTop: '16px' }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredListings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+                <Search size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <p style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>No listings found</p>
+                <p>Try adjusting your filters or check back later for new listings.</p>
+              </div>
             ) : (
               <div style={listingsGridStyle}>
                 {filteredListings.map(listing => (
@@ -605,6 +764,10 @@ const BuyerDashboard = () => {
                       src={listing.image} 
                       alt={listing.wasteType} 
                       style={listingImageStyle}
+                      onError={(e) => {
+                        // Fallback to default image if image fails to load
+                        e.target.src = '/images/istockphoto-607884592-612x612.jpg';
+                      }}
                     />
                     <div style={listingDetailsStyle}>
                       <h4 style={{ marginBottom: '12px', color: '#1e293b' }}>
@@ -626,31 +789,49 @@ const BuyerDashboard = () => {
                         <strong>Carbon Saving:</strong> {listing.carbonSaving}
                       </p>
                       <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                        <strong>Distance:</strong> {listing.distance} km
+                        <strong>Listed on:</strong> {listing.freshness}
                       </p>
-                      <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                        <strong>Freshness:</strong> {listing.freshness}
-                      </p>
-                      <p style={{ 
-                        marginBottom: '4px', 
-                        fontSize: '14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        <strong>Rating:</strong> {listing.rating} 
-                        <Star size={14} style={{ color: '#fbbf24', fill: '#fbbf24' }} />
-                      </p>
+                      {listing.description && listing.description.trim() && (
+                        <p style={{ marginBottom: '4px', fontSize: '13px', color: '#6b7280', fontStyle: 'italic', marginTop: '8px' }}>
+                          {listing.description}
+                        </p>
+                      )}
+                      {listing.category && listing.category.trim() && (
+                        <p style={{ marginBottom: '4px', fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                          Category: {listing.category}
+                        </p>
+                      )}
+                      {listing.expectedProcess && listing.expectedProcess.trim() && (
+                        <p style={{ marginBottom: '4px', fontSize: '12px', color: '#9ca3af' }}>
+                          Process: {listing.expectedProcess}
+                        </p>
+                      )}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                       <button 
                         style={favoriteButtonStyle(favorites.has(listing.id))}
-                        onClick={() => {
-                          toggleFavorite(listing.id);
-                          handleInquire(listing.id);
-                        }}
+                          onClick={() => {
+                            toggleFavorite(listing.id);
+                            handleInquire(listing.id);
+                          }}
                       >
                         <Heart size={16} />
-                        {favorites.has(listing.id) ? 'Remove from Favorites' : 'Add to Favorites'}
-                      </button>
+                          {favorites.has(listing.id) ? '❤️' : '🤍'}
+                        </button>
+                        <button 
+                          style={{
+                            ...favoriteButtonStyle(false),
+                            backgroundColor: '#3b82f6',
+                            flex: 1
+                          }}
+                          onClick={() => {
+                            setSelectedListingForInquiry(listing);
+                            setShowInquiryModal(true);
+                          }}
+                        >
+                          <MessageCircle size={16} />
+                          Inquire
+                        </button>
+                      </div>
                       <button 
                         style={{
                           ...favoriteButtonStyle(false),
@@ -658,11 +839,10 @@ const BuyerDashboard = () => {
                           marginTop: '8px',
                           width: '100%'
                         }}
-                        onClick={() => handlePurchase(listing._id || listing.id)}
-                        disabled={buyingListingId === (listing._id || listing.id)}
+                        onClick={() => addToCart(listing)}
                       >
                         <ShoppingCart size={16} />
-                        {buyingListingId === (listing._id || listing.id) ? 'Processing...' : 'Buy Now'}
+                        Add to Cart
                       </button>
                     </div>
                   </div>
@@ -671,6 +851,175 @@ const BuyerDashboard = () => {
             )}
           </section>
         </div>
+      )}
+
+      {activeTab === 'favorites' && (
+        <section style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+          <h2 style={{ marginBottom: '24px', color: '#1e293b' }}>My Favorites</h2>
+          {favoriteListings.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+              <Heart size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+              <p style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>No favorites yet</p>
+              <p>Add products to favorites from the marketplace!</p>
+            </div>
+          ) : (
+            <div style={listingsGridStyle}>
+              {favoriteListings.map(listing => (
+                <div key={listing.id} style={listingCardStyle}>
+                  <img 
+                    src={listing.image || getDefaultImage(listing.wasteType)} 
+                    alt={listing.wasteType} 
+                    style={listingImageStyle}
+                    onError={(e) => {
+                      e.target.src = '/images/istockphoto-607884592-612x612.jpg';
+                    }}
+                  />
+                  <div style={listingDetailsStyle}>
+                    <h4 style={{ marginBottom: '12px', color: '#1e293b' }}>{listing.wasteType}</h4>
+                    <p style={{ marginBottom: '4px', fontSize: '14px' }}><strong>Farmer:</strong> {listing.farmer}</p>
+                    <p style={{ marginBottom: '4px', fontSize: '14px' }}><strong>Price:</strong> {listing.price}</p>
+                    <p style={{ marginBottom: '4px', fontSize: '14px' }}><strong>Quantity:</strong> {listing.quantity}</p>
+                    <button 
+                      style={{
+                        ...favoriteButtonStyle(false),
+                        backgroundColor: '#16a34a',
+                        marginTop: '12px',
+                        width: '100%'
+                      }}
+                      onClick={() => addToCart(listing)}
+                    >
+                      <ShoppingCart size={16} />
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === 'checkout' && (
+        <section style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+          <h2 style={{ marginBottom: '24px', color: '#1e293b' }}>Checkout ({cart.length} items)</h2>
+          {cart.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+              <ShoppingCart size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+              <p style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>Your cart is empty</p>
+              <p>Add products from the marketplace to checkout!</p>
+            </div>
+          ) : (
+            <div>
+              <div style={listingsGridStyle}>
+                {cart.map(listing => (
+                  <div key={listing._id || listing.id} style={listingCardStyle}>
+                    <div style={{
+                      ...listingImageStyle,
+                      display: 'flex',
+                      backgroundColor: '#e8f5e8',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '48px'
+                    }}>
+                      {listing.image || '🌾'}
+                    </div>
+                    <div style={listingDetailsStyle}>
+                      <h4 style={{ marginBottom: '12px', color: '#1e293b' }}>{listing.wasteType}</h4>
+                      <p style={{ marginBottom: '4px', fontSize: '14px' }}><strong>Farmer:</strong> {listing.farmer}</p>
+                      <p style={{ marginBottom: '4px', fontSize: '14px' }}><strong>Price:</strong> {listing.price}</p>
+                      <p style={{ marginBottom: '4px', fontSize: '14px' }}><strong>Quantity:</strong> {listing.quantity}</p>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                        <button 
+                          style={{
+                            ...favoriteButtonStyle(false),
+                            backgroundColor: '#ef4444',
+                            flex: 1
+                          }}
+                          onClick={() => removeFromCart(listing._id || listing.id)}
+                        >
+                          Remove
+                        </button>
+                        <button 
+                          style={{
+                            ...favoriteButtonStyle(false),
+                            backgroundColor: '#16a34a',
+                            flex: 1
+                          }}
+                          onClick={() => handlePurchase(listing._id || listing.id)}
+                          disabled={buyingListingId === (listing._id || listing.id)}
+                        >
+                          {buyingListingId === (listing._id || listing.id) ? 'Processing...' : 'Buy Now'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === 'inquiries' && (
+        <section style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+          <h2 style={{ marginBottom: '24px', color: '#1e293b' }}>My Inquiries</h2>
+          {inquiries.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+              <MessageCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+              <p style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>No inquiries yet</p>
+              <p>Send inquiries to farmers about their products from the marketplace!</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {inquiries.map(inquiry => (
+                <div key={inquiry._id} style={{
+                  backgroundColor: 'white',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                    <div>
+                      <h4 style={{ fontWeight: '600', marginBottom: '4px' }}>
+                        {inquiry.listingId?.wasteType || 'Unknown Product'}
+                    </h4>
+                      <p style={{ fontSize: '14px', color: '#6b7280' }}>
+                        Farmer: {inquiry.farmerId?.name || inquiry.farmerName || 'Unknown'}
+                      </p>
+                    </div>
+                    <span style={{
+                      padding: '4px 12px',
+                      fontSize: '12px',
+                      borderRadius: '12px',
+                      backgroundColor: inquiry.status === 'Pending' ? '#fef3c7' : inquiry.status === 'Replied' ? '#dbeafe' : '#dcfce7',
+                      color: inquiry.status === 'Pending' ? '#92400e' : inquiry.status === 'Replied' ? '#1d4ed8' : '#166534'
+                    }}>
+                      {inquiry.status}
+                    </span>
+                  </div>
+                  <p style={{ marginBottom: '12px', color: '#374151' }}>{inquiry.message}</p>
+                  {inquiry.replies && inquiry.replies.length > 0 && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+                      <h5 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Farmer's Reply:</h5>
+                      {inquiry.replies.map((reply, idx) => (
+                        <div key={idx} style={{ marginBottom: '8px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
+                          <p style={{ fontSize: '14px', color: '#374151' }}>{reply.message}</p>
+                          <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                            - {reply.authorName} ({new Date(reply.createdAt).toLocaleDateString()})
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '12px' }}>
+                    Sent: {new Date(inquiry.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {activeTab === 'orders' && (
@@ -693,9 +1042,14 @@ const BuyerDashboard = () => {
             <div style={listingsGridStyle}>
               {purchases.map(purchase => (
                 <div key={purchase._id} style={listingCardStyle}>
-                  <div style={{ ...listingImageStyle, backgroundColor: '#e8f5e8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px' }}>
-                    {purchase.listingId?.image || '🌾'}
-                  </div>
+                  <img 
+                    src={purchase.listingId?.image ? normalizeImagePath(purchase.listingId.image) : getDefaultImage(purchase.wasteType)} 
+                    alt={purchase.wasteType} 
+                    style={listingImageStyle}
+                    onError={(e) => {
+                      e.target.src = '/images/istockphoto-607884592-612x612.jpg';
+                    }}
+                  />
                   <div style={listingDetailsStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                       <h4 style={{ marginBottom: '0', color: '#1e293b' }}>
@@ -737,6 +1091,86 @@ const BuyerDashboard = () => {
             </div>
           )}
         </section>
+      )}
+
+      {/* Inquiry Modal */}
+      {showInquiryModal && selectedListingForInquiry && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>
+              Send Inquiry: {selectedListingForInquiry.wasteType}
+            </h3>
+            <p style={{ marginBottom: '16px', color: '#6b7280', fontSize: '14px' }}>
+              Farmer: {selectedListingForInquiry.farmer}
+            </p>
+            <textarea
+              value={inquiryMessage}
+              onChange={(e) => setInquiryMessage(e.target.value)}
+              placeholder="Ask the farmer about this product..."
+              style={{
+                width: '100%',
+                minHeight: '120px',
+                padding: '12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '14px',
+                marginBottom: '16px',
+                boxSizing: 'border-box'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button 
+                onClick={() => {
+                  setShowInquiryModal(false);
+                  setInquiryMessage('');
+                  setSelectedListingForInquiry(null);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitInquiry}
+                disabled={!inquiryMessage.trim()}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  backgroundColor: inquiryMessage.trim() ? '#16a34a' : '#9ca3af',
+                  color: 'white',
+                  cursor: inquiryMessage.trim() ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Send Inquiry
+                    </button>
+                  </div>
+                </div>
+            </div>
       )}
     </div>
   );
