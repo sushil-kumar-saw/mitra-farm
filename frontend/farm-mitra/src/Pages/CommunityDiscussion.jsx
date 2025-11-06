@@ -1,37 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const FarmerCommunicationPage = () => {
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      author: 'ajeet',
-      authorId: 'john123',
-      question: 'What is the best time to plant corn in this region?',
-      timestamp: new Date('2024-05-28T10:30:00'),
-      replies: [
-        {
-          id: 1,
-          author: 'ashish',
-          authorId: 'mary456',
-          content: 'I usually plant corn in early May when soil temperature reaches 60°F.',
-          timestamp: new Date('2024-05-28T11:00:00')
-        }
-      ]
-    },
-    {
-      id: 2,
-      author: 'aman',
-      authorId: 'sarah789',
-      question: 'Has anyone tried organic pest control methods for tomatoes?',
-      timestamp: new Date('2024-05-28T09:15:00'),
-      replies: []
-    }
-  ]);
-
-  const [currentUser, setCurrentUser] = useState('john123');
+  const [posts, setPosts] = useState([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [replyTexts, setReplyTexts] = useState({});
-  const [userName, setUserName] = useState('ajeet');
+  const [userName, setUserName] = useState('');
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+  // Fetch user info and posts
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Get current user
+        const userResponse = await fetch(`${API_BASE_URL}/auth/verify`, {
+          credentials: 'include'
+        });
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (userData.success) {
+            setUserName(userData.user.name);
+            setCurrentUserId(userData.user.id);
+          }
+        }
+
+        // Get posts
+        const postsResponse = await fetch(`${API_BASE_URL}/community`, {
+          credentials: 'include'
+        });
+        if (postsResponse.ok) {
+          const postsData = await postsResponse.json();
+          if (postsData.success) {
+            setPosts(postsData.posts);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+        setError('Failed to load community posts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const styles = {
     container: {
@@ -108,9 +123,6 @@ const FarmerCommunicationPage = () => {
       outline: 'none',
       transition: 'border-color 0.3s'
     },
-    textareaFocus: {
-      borderColor: '#2d7a2d'
-    },
     button: {
       backgroundColor: '#2d7a2d',
       color: 'white',
@@ -124,9 +136,6 @@ const FarmerCommunicationPage = () => {
       gap: '8px',
       alignSelf: 'flex-start',
       transition: 'background-color 0.3s'
-    },
-    buttonHover: {
-      backgroundColor: '#1f5f1f'
     },
     postCard: {
       background: 'white',
@@ -283,13 +292,15 @@ const FarmerCommunicationPage = () => {
   };
 
   const formatTime = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    const date = new Date(timestamp);
     const now = new Date();
-    const diff = now - timestamp;
+    const diff = now - date;
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor(diff / (1000 * 60));
     
     if (hours > 24) {
-      return timestamp.toLocaleDateString();
+      return date.toLocaleDateString();
     } else if (hours > 0) {
       return `${hours}h ago`;
     } else {
@@ -297,53 +308,101 @@ const FarmerCommunicationPage = () => {
     }
   };
 
-  const handlePostQuestion = () => {
+  const handlePostQuestion = async () => {
     if (!newQuestion.trim()) return;
     
-    const newPost = {
-      id: Date.now(),
-      author: userName,
-      authorId: currentUser,
-      question: newQuestion,
-      timestamp: new Date(),
-      replies: []
-    };
-    
-    setPosts([newPost, ...posts]);
-    setNewQuestion('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/community`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ question: newQuestion })
+      });
+
+      if (!response.ok) throw new Error('Failed to post question');
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts([data.post, ...posts]);
+        setNewQuestion('');
+        setError('');
+      }
+    } catch (err) {
+      console.error('Error posting question:', err);
+      setError('Failed to post question');
+    }
   };
 
-  const handleReply = (postId) => {
+  const handleReply = async (postId) => {
     const replyText = replyTexts[postId];
     if (!replyText?.trim()) return;
     
-    const newReply = {
-      id: Date.now(),
-      author: userName,
-      authorId: currentUser,
-      content: replyText,
-      timestamp: new Date()
-    };
-    
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { ...post, replies: [...post.replies, newReply] }
-        : post
-    ));
-    
-    setReplyTexts({ ...replyTexts, [postId]: '' });
+    try {
+      const response = await fetch(`${API_BASE_URL}/community/${postId}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content: replyText })
+      });
+
+      if (!response.ok) throw new Error('Failed to post reply');
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(posts.map(post => 
+          post._id === postId ? data.post : post
+        ));
+        setReplyTexts({ ...replyTexts, [postId]: '' });
+        setError('');
+      }
+    } catch (err) {
+      console.error('Error posting reply:', err);
+      setError('Failed to post reply');
+    }
   };
 
-  const handleDeletePost = (postId) => {
-    setPosts(posts.filter(post => post.id !== postId));
+  const handleDeletePost = async (postId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/community/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete post');
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(posts.filter(post => post._id !== postId));
+        setError('');
+      }
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      setError('Failed to delete post');
+    }
   };
 
-  const handleDeleteReply = (postId, replyId) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { ...post, replies: post.replies.filter(reply => reply.id !== replyId) }
-        : post
-    ));
+  const handleDeleteReply = async (postId, replyId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/community/${postId}/replies/${replyId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete reply');
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(posts.map(post => 
+          post._id === postId 
+            ? { ...post, replies: post.replies.filter(reply => reply._id !== replyId) }
+            : post
+        ));
+        setError('');
+      }
+    } catch (err) {
+      console.error('Error deleting reply:', err);
+      setError('Failed to delete reply');
+    }
   };
 
   const updateReplyText = (postId, text) => {
@@ -363,12 +422,18 @@ const FarmerCommunicationPage = () => {
       </div>
 
       <div style={styles.mainContent}>
+        {error && (
+          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
+            {error}
+          </div>
+        )}
+
         {/* User Section */}
         <div style={styles.userSection}>
           <div style={styles.userInfo}>
             <div style={styles.userIcon}>👤</div>
             <span style={{ fontWeight: 'bold', fontSize: '18px' }}>
-              Logged in as: {userName}
+              Logged in as: {userName || 'Loading...'}
             </span>
           </div>
           
@@ -395,96 +460,102 @@ const FarmerCommunicationPage = () => {
         </div>
 
         {/* Posts */}
-        <div>
-          {posts.map(post => (
-            <div key={post.id} style={styles.postCard}>
-              {/* Post Header */}
-              <div style={styles.postHeader}>
-                <div style={styles.postHeaderContent}>
-                  <div style={styles.authorInfo}>
-                    <div style={styles.avatar}>
-                      {post.author.charAt(0)}
-                    </div>
-                    <div style={styles.authorDetails}>
-                      <div style={styles.authorName}>{post.author}</div>
-                      <div style={styles.timestamp}>
-                        🕒 {formatTime(post.timestamp)}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '48px', color: '#666' }}>
+            Loading posts...
+          </div>
+        ) : (
+          <div>
+            {posts.map(post => (
+              <div key={post._id} style={styles.postCard}>
+                {/* Post Header */}
+                <div style={styles.postHeader}>
+                  <div style={styles.postHeaderContent}>
+                    <div style={styles.authorInfo}>
+                      <div style={styles.avatar}>
+                        {post.authorName?.charAt(0) || 'U'}
                       </div>
-                    </div>
-                  </div>
-                  {post.authorId === currentUser && (
-                    <button
-                      onClick={() => handleDeletePost(post.id)}
-                      style={styles.deleteButton}
-                      title="Delete your question"
-                    >
-                      🗑️
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Post Content */}
-              <div style={styles.postContent}>
-                <p style={styles.questionText}>{post.question}</p>
-
-                {/* Replies */}
-                {post.replies.length > 0 && (
-                  <div style={styles.repliesSection}>
-                    <h4 style={styles.repliesHeader}>
-                      Replies ({post.replies.length})
-                    </h4>
-                    {post.replies.map(reply => (
-                      <div key={reply.id} style={styles.reply}>
-                        <div style={styles.replyHeader}>
-                          <div style={styles.replyAuthor}>
-                            <div style={styles.replyAvatar}>
-                              {reply.author.charAt(0)}
-                            </div>
-                            <span style={{ fontWeight: 'bold', color: '#555' }}>
-                              {reply.author}
-                            </span>
-                            <span style={{ color: '#888', fontSize: '12px' }}>
-                              {formatTime(reply.timestamp)}
-                            </span>
-                          </div>
-                          {reply.authorId === currentUser && (
-                            <button
-                              onClick={() => handleDeleteReply(post.id, reply.id)}
-                              style={{ ...styles.deleteButton, fontSize: '16px' }}
-                              title="Delete your reply"
-                            >
-                              🗑️
-                            </button>
-                          )}
+                      <div style={styles.authorDetails}>
+                        <div style={styles.authorName}>{post.authorName}</div>
+                        <div style={styles.timestamp}>
+                          🕒 {formatTime(post.createdAt)}
                         </div>
-                        <p style={styles.replyContent}>{reply.content}</p>
                       </div>
-                    ))}
+                    </div>
+                    {post.authorId?.toString() === currentUserId?.toString() && (
+                      <button
+                        onClick={() => handleDeletePost(post._id)}
+                        style={styles.deleteButton}
+                        title="Delete your question"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
-                )}
+                </div>
 
-                {/* Reply Form */}
-                <div style={styles.replyForm}>
-                  <textarea
-                    value={replyTexts[post.id] || ''}
-                    onChange={(e) => updateReplyText(post.id, e.target.value)}
-                    placeholder="Share your knowledge and help this farmer..."
-                    style={styles.replyTextarea}
-                  />
-                  <button
-                    onClick={() => handleReply(post.id)}
-                    style={styles.replyButton}
-                  >
-                    📤 Reply
-                  </button>
+                {/* Post Content */}
+                <div style={styles.postContent}>
+                  <p style={styles.questionText}>{post.question}</p>
+
+                  {/* Replies */}
+                  {post.replies && post.replies.length > 0 && (
+                    <div style={styles.repliesSection}>
+                      <h4 style={styles.repliesHeader}>
+                        Replies ({post.replies.length})
+                      </h4>
+                      {post.replies.map(reply => (
+                        <div key={reply._id} style={styles.reply}>
+                          <div style={styles.replyHeader}>
+                            <div style={styles.replyAuthor}>
+                              <div style={styles.replyAvatar}>
+                                {reply.authorName?.charAt(0) || 'U'}
+                              </div>
+                              <span style={{ fontWeight: 'bold', color: '#555' }}>
+                                {reply.authorName}
+                              </span>
+                              <span style={{ color: '#888', fontSize: '12px' }}>
+                                {formatTime(reply.createdAt)}
+                              </span>
+                            </div>
+                            {reply.authorId?.toString() === currentUserId?.toString() && (
+                              <button
+                                onClick={() => handleDeleteReply(post._id, reply._id)}
+                                style={{ ...styles.deleteButton, fontSize: '16px' }}
+                                title="Delete your reply"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                          <p style={styles.replyContent}>{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reply Form */}
+                  <div style={styles.replyForm}>
+                    <textarea
+                      value={replyTexts[post._id] || ''}
+                      onChange={(e) => updateReplyText(post._id, e.target.value)}
+                      placeholder="Share your knowledge and help this farmer..."
+                      style={styles.replyTextarea}
+                    />
+                    <button
+                      onClick={() => handleReply(post._id)}
+                      style={styles.replyButton}
+                    >
+                      📤 Reply
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {posts.length === 0 && (
+        {!loading && posts.length === 0 && (
           <div style={styles.emptyState}>
             <div style={styles.emptyIcon}>💬</div>
             <h3 style={{ fontSize: '24px', color: '#666', marginBottom: '10px' }}>

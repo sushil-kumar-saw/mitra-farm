@@ -28,7 +28,9 @@ const BuyerDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
   const [wasteListings, setWasteListings] = useState([]);
+  const [purchases, setPurchases] = useState([]);
   const [error, setError] = useState("");
+  const [buyingListingId, setBuyingListingId] = useState(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
@@ -63,6 +65,7 @@ const BuyerDashboard = () => {
         // Transform API data to match component format
         const transformedListings = data.listings.map((listing, idx) => ({
           id: listing._id || idx + 1,
+          _id: listing._id,
           farmer: listing.farmerName || (listing.farmerId?.name || 'Unknown'),
           location: listing.location,
           wasteType: listing.wasteType,
@@ -83,14 +86,65 @@ const BuyerDashboard = () => {
     }
   };
 
+  // Fetch purchases
+  const fetchPurchases = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/buyer/purchases`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch purchases');
+      const data = await response.json();
+      if (data.success) {
+        setPurchases(data.purchases);
+      }
+    } catch (err) {
+      console.error('Error fetching purchases:', err);
+      setError('Failed to load purchases');
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchStats(), fetchMarketplaceListings()]);
+      await Promise.all([fetchStats(), fetchMarketplaceListings(), fetchPurchases()]);
       setIsLoading(false);
     };
     loadData();
   }, []);
+
+  // Handle purchase
+  const handlePurchase = async (listingId) => {
+    if (!listingId) return;
+    
+    setBuyingListingId(listingId);
+    try {
+      const response = await fetch(`${API_BASE_URL}/buyer/purchases`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ listingId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to purchase');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh data
+        await Promise.all([fetchStats(), fetchMarketplaceListings(), fetchPurchases()]);
+        setError('');
+        alert('Purchase successful!');
+      }
+    } catch (err) {
+      console.error('Error purchasing:', err);
+      setError(err.message || 'Failed to purchase listing');
+    } finally {
+      setBuyingListingId(null);
+    }
+  };
 
   // Handle inquiry/increment view count
   const handleInquire = async (listingId) => {
@@ -401,7 +455,7 @@ const BuyerDashboard = () => {
       <nav style={navTabsStyle}>
         {[
           { id: 'marketplace', label: 'Marketplace', icon: Search },
-          { id: 'orders', label: 'My Orders', icon: ShoppingCart },
+          { id: 'orders', label: 'My Purchases', icon: ShoppingCart },
           { id: 'analytics', label: 'Analytics', icon: BarChart3 },
           { id: 'settings', label: 'Settings', icon: Settings }
         ].map(tab => (
@@ -595,7 +649,20 @@ const BuyerDashboard = () => {
                         }}
                       >
                         <Heart size={16} />
-                        {favorites.has(listing.id) ? 'Remove Order' : 'Add to Order'}
+                        {favorites.has(listing.id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                      </button>
+                      <button 
+                        style={{
+                          ...favoriteButtonStyle(false),
+                          backgroundColor: '#16a34a',
+                          marginTop: '8px',
+                          width: '100%'
+                        }}
+                        onClick={() => handlePurchase(listing._id || listing.id)}
+                        disabled={buyingListingId === (listing._id || listing.id)}
+                      >
+                        <ShoppingCart size={16} />
+                        {buyingListingId === (listing._id || listing.id) ? 'Processing...' : 'Buy Now'}
                       </button>
                     </div>
                   </div>
@@ -608,62 +675,62 @@ const BuyerDashboard = () => {
 
       {activeTab === 'orders' && (
         <section style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-          <h2 style={{ marginBottom: '24px', color: '#1e293b' }}>My Orders (Favorites)</h2>
-          {favoriteListings.length === 0 ? (
+          <h2 style={{ marginBottom: '24px', color: '#1e293b' }}>My Purchases</h2>
+          {error && (
+            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
+              {error}
+            </div>
+          )}
+          {isLoading ? (
             <p style={{ textAlign: 'center', color: '#64748b', fontSize: '18px' }}>
-              You have no favorite listings yet.
+              Loading purchases...
+            </p>
+          ) : purchases.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#64748b', fontSize: '18px' }}>
+              You haven't made any purchases yet. Browse the marketplace to buy agricultural waste!
             </p>
           ) : (
             <div style={listingsGridStyle}>
-              {favoriteListings.map(listing => (
-                <div key={listing.id} style={listingCardStyle}>
-                  <img 
-                    src={listing.image} 
-                    alt={listing.wasteType} 
-                    style={listingImageStyle}
-                  />
+              {purchases.map(purchase => (
+                <div key={purchase._id} style={listingCardStyle}>
+                  <div style={{ ...listingImageStyle, backgroundColor: '#e8f5e8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px' }}>
+                    {purchase.listingId?.image || '🌾'}
+                  </div>
                   <div style={listingDetailsStyle}>
-                    <h4 style={{ marginBottom: '12px', color: '#1e293b' }}>
-                      {listing.wasteType}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                      <h4 style={{ marginBottom: '0', color: '#1e293b' }}>
+                        {purchase.wasteType}
                     </h4>
+                      <span style={{
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        borderRadius: '12px',
+                        backgroundColor: purchase.status === 'Completed' ? '#dcfce7' : purchase.status === 'Confirmed' ? '#dbeafe' : '#fef3c7',
+                        color: purchase.status === 'Completed' ? '#166534' : purchase.status === 'Confirmed' ? '#1d4ed8' : '#92400e'
+                      }}>
+                        {purchase.status}
+                      </span>
+                    </div>
                     <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Farmer:</strong> {listing.farmer}
-                    </p>
-                    <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Location:</strong> {listing.location}
-                    </p>
-                    <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Quantity:</strong> {listing.quantity}
-                    </p>
-                    <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Price:</strong> {listing.price}
-                    </p>
-                    <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Carbon Saving:</strong> {listing.carbonSaving}
+                      <strong>Farmer:</strong> {purchase.farmerId?.name || purchase.listingId?.farmerName || 'Unknown'}
                     </p>
                     <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Distance:</strong> {listing.distance} km
+                      <strong>Quantity:</strong> {purchase.quantity}
                     </p>
                     <p style={{ marginBottom: '4px', fontSize: '14px' }}>
-                      <strong>Freshness:</strong> {listing.freshness}
+                      <strong>Price:</strong> {purchase.price}
                     </p>
-                    <p style={{ 
-                      marginBottom: '4px', 
-                      fontSize: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}>
-                      <strong>Rating:</strong> {listing.rating} 
-                      <Star size={14} style={{ color: '#fbbf24', fill: '#fbbf24' }} />
+                    {purchase.totalAmount && (
+                      <p style={{ marginBottom: '4px', fontSize: '14px', fontWeight: 'bold', color: '#16a34a' }}>
+                        <strong>Total Amount:</strong> ₹{purchase.totalAmount.toLocaleString()}
                     </p>
-                    <button 
-                      style={favoriteButtonStyle(true)}
-                      onClick={() => toggleFavorite(listing.id)}
-                    >
-                      <Heart size={16} />
-                      Remove Order
-                    </button>
+                    )}
+                    <p style={{ marginBottom: '4px', fontSize: '14px' }}>
+                      <strong>Carbon Saving:</strong> {purchase.carbonSaving || 'N/A'}
+                    </p>
+                    <p style={{ marginBottom: '4px', fontSize: '12px', color: '#64748b' }}>
+                      Purchased: {new Date(purchase.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               ))}

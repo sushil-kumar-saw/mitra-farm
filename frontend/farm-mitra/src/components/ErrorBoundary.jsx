@@ -20,7 +20,13 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       // Customize your fallback UI here
-      return <h2>Oops! Something went wrong. Please try again later.</h2>;
+      return (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h2>Oops! Something went wrong.</h2>
+          <p>Please check the browser console for details.</p>
+          <button onClick={() => window.location.href = '/'}>Go to Home</button>
+        </div>
+      );
     }
 
     // Render children if no error

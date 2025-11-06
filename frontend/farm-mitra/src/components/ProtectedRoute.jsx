@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
           setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        // Silently fail - don't log network errors during auth check
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
@@ -68,4 +68,3 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default ProtectedRoute;
-

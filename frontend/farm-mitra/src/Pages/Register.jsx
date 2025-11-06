@@ -16,9 +16,15 @@ const Register = () => {
 const handleSubmit = async (e) => {
   e.preventDefault();
   setError(""); // Clear previous errors
+  
+  // Show loading state
+  const submitButton = e.target.querySelector('button[type="submit"]');
+  const originalText = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = "🔄 Registering...";
+  
   try {
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-    console.log('Attempting registration to:', `${API_BASE_URL}/auth/register`);
     
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
@@ -27,29 +33,51 @@ const handleSubmit = async (e) => {
       body: JSON.stringify({ ...formData, role }),
     });
 
+    // Handle response
     if (!response.ok) {
       let errorData;
       try {
         errorData = await response.json();
       } catch (parseError) {
-        errorData = { message: `Server error: ${response.status} ${response.statusText}` };
+        // Server returned non-JSON response
+        if (response.status === 0) {
+          setError("Cannot connect to server. Please check if the backend is running.");
+        } else {
+          setError(`Server error (${response.status}). Please try again.`);
+        }
+        return;
       }
-      setError(errorData.message || "Registration failed");
+      // Show the actual error message from server
+      setError(errorData.message || "Registration failed. Please check your information.");
       return;
     }
 
     const data = await response.json();
     if (data.success) {
+      // Success - navigate to login
       navigate("/auth/login");
     } else {
       setError(data.message || "Registration failed");
     }
   } catch (error) {
-    console.error("Registration error:", error);
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+    // Only show network error if it's actually a network connectivity issue
+    const isNetworkError = error.name === 'TypeError' && 
+      (error.message.includes('fetch') || 
+       error.message.includes('Failed to fetch') || 
+       error.message.includes('NetworkError') ||
+       error.message.includes('Network request failed'));
+    
+    if (isNetworkError) {
       setError("Cannot connect to server. Please ensure the backend server is running on port 3000.");
     } else {
-      setError(`Network error: ${error.message}`);
+      // For any other error, show a user-friendly message without "Network error"
+      setError("Registration failed. Please check your information and try again.");
+    }
+  } finally {
+    // Restore button state
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = originalText;
     }
   }
 };

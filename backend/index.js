@@ -10,6 +10,7 @@ import listingsRoutes from "./routes/listings.js";
 import statsRoutes from "./routes/stats.js";
 import farmerRoutes from "./routes/farmer.js";
 import buyerRoutes from "./routes/buyer.js";
+import communityRoutes from "./routes/community.js";
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/listings', listingsRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
+app.use('/api/community', communityRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
