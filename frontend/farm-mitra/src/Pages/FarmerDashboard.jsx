@@ -87,23 +87,25 @@ const FarmerDashboard = () => {
     tab: {
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
-      padding: '8px 16px',
+      justifyContent: 'center',
+      gap: '6px',
+      padding: '10px 20px',
+      minHeight: '40px',
       borderRadius: '6px',
       fontSize: '14px',
-      fontWeight: '500',
+      fontWeight: '400',
       cursor: 'pointer',
-      transition: 'all 0.2s',
-      border: 'none',
+      transition: 'all 0.2s ease',
+      border: '1px solid transparent',
       background: 'none'
     },
     activeTab: {
       backgroundColor: 'white',
-      color: '#111827',
-      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+      color: '#1e293b',
+      borderColor: '#e2e8f0'
     },
     inactiveTab: {
-      color: '#6b7280'
+      color: '#64748b'
     },
     card: {
       backgroundColor: 'white',
@@ -120,23 +122,27 @@ const FarmerDashboard = () => {
     button: {
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
-      padding: '8px 16px',
-      borderRadius: '8px',
-      border: 'none',
+      justifyContent: 'center',
+      gap: '6px',
+      padding: '10px 20px',
+      minHeight: '40px',
+      borderRadius: '6px',
+      border: '1px solid transparent',
       cursor: 'pointer',
       fontSize: '14px',
-      fontWeight: '500',
-      transition: 'background-color 0.2s'
+      fontWeight: '400',
+      transition: 'all 0.2s ease',
+      whiteSpace: 'nowrap'
     },
     primaryButton: {
-      backgroundColor: '#16a34a',
-      color: 'white'
+      backgroundColor: '#22c55e',
+      color: 'white',
+      borderColor: '#22c55e'
     },
     secondaryButton: {
-      backgroundColor: '#f3f4f6',
-      color: '#374151',
-      border: '1px solid #d1d5db'
+      backgroundColor: '#f8fafc',
+      color: '#475569',
+      borderColor: '#e2e8f0'
     }
   };
 
@@ -334,11 +340,22 @@ const FarmerDashboard = () => {
 
   if (showAnalyzer) {
     return (
+      <>
+      <style>{`
+        .btn-primary:hover:not(:disabled) {
+          background-color: #16a34a !important;
+          transform: translateY(-1px);
+        }
+        .btn-secondary:hover {
+          background-color: #f1f5f9 !important;
+          border-color: #cbd5e1 !important;
+        }
+      `}</style>
       <div style={styles.container}>
         <div style={{ ...styles.card, maxWidth: '800px', margin: '32px auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-            <button onClick={() => setShowAnalyzer(false)} style={{ ...styles.button, marginRight: '16px' }}>
-              <ArrowLeft size={20} />
+            <button onClick={() => setShowAnalyzer(false)} className="btn-secondary" style={{ ...styles.button, ...styles.secondaryButton, marginRight: '16px', padding: '10px 16px' }}>
+              <ArrowLeft size={18} />
             </button>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#166534' }}>🌾 Waste Analyzer</h1>
           </div>
@@ -380,9 +397,10 @@ const FarmerDashboard = () => {
           <button 
             onClick={handleAnalyze} 
             disabled={analyzing} 
+            className="btn-primary"
             style={{ ...styles.button, ...styles.primaryButton, width: '100%', marginBottom: '16px' }}
           >
-            {analyzing ? "🔄 Analyzing..." : "🤖 Analyze Waste"}
+            {analyzing ? "Analyzing..." : "Analyze Waste"}
           </button>
 
           {analyzerError && (
@@ -403,19 +421,35 @@ const FarmerDashboard = () => {
               </div>
               <button 
                 onClick={addToListings} 
-                style={{ ...styles.button, backgroundColor: '#2563eb', color: 'white', marginTop: '16px' }}
+                className="btn-primary"
+                style={{ ...styles.button, ...styles.primaryButton, marginTop: '16px' }}
               >
-                ✅ Add to Listings
+                Add to Listings
               </button>
             </div>
           )}
         </div>
       </div>
+      </>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <>
+      <style>{`
+        .btn-primary:hover:not(:disabled) {
+          background-color: #16a34a !important;
+          transform: translateY(-1px);
+        }
+        .btn-secondary:hover {
+          background-color: #f1f5f9 !important;
+          border-color: #cbd5e1 !important;
+        }
+        .btn-tab:hover {
+          background-color: rgba(255, 255, 255, 0.5) !important;
+        }
+      `}</style>
+      <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerContent}>
           <div style={styles.logo}>
@@ -478,6 +512,7 @@ const FarmerDashboard = () => {
             <button 
               key={tab.id} 
               onClick={() => setActiveTab(tab.id)} 
+              className="btn-tab"
               style={{
                 ...styles.tab,
                 ...(activeTab === tab.id ? styles.activeTab : styles.inactiveTab)
@@ -495,9 +530,10 @@ const FarmerDashboard = () => {
               <h3 style={{ fontSize: '1.125rem', fontWeight: '600' }}>My Waste Listings</h3>
               <button 
                 onClick={() => setShowAnalyzer(true)} 
+                className="btn-primary"
                 style={{ ...styles.button, ...styles.primaryButton }}
               >
-                <Plus size={16} />
+                <Plus size={18} />
                 <span>Add New Listing</span>
               </button>
             </div>
@@ -549,7 +585,7 @@ const FarmerDashboard = () => {
                       <Eye size={16} color="#9ca3af" />
                       <span style={{ fontSize: '14px', color: '#6b7280' }}>{listing.inquiries} inquiries</span>
                     </div>
-                    <button style={{ fontSize: '14px', color: '#16a34a', fontWeight: '500', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <button className="btn-secondary" style={{ ...styles.button, ...styles.secondaryButton, padding: '8px 16px', minHeight: '36px', fontSize: '14px' }}>
                       View Details
                     </button>
                   </div>
@@ -667,7 +703,8 @@ const FarmerDashboard = () => {
                         <div style={{ display: 'flex', gap: '12px' }}>
                           {isMessageInquiry && (!inquiry.replies || inquiry.replies.length === 0) && (
                             <button
-                              style={{ ...styles.button, ...styles.primaryButton }}
+                              className="btn-primary"
+                              style={{ ...styles.button, ...styles.primaryButton, padding: '8px 16px', minHeight: '36px' }}
                               onClick={() => {
                                 const replyMessage = prompt('Enter your reply:');
                                 if (replyMessage && replyMessage.trim()) {
@@ -695,7 +732,8 @@ const FarmerDashboard = () => {
                             </button>
                           )}
                           <button
-                            style={{ ...styles.button, ...styles.secondaryButton }}
+                            className="btn-secondary"
+                            style={{ ...styles.button, ...styles.secondaryButton, padding: '8px 16px', minHeight: '36px' }}
                             onClick={() => window.location.href = `mailto:${inquiry.buyerEmail}`}
                           >
                             Contact Buyer
@@ -711,6 +749,7 @@ const FarmerDashboard = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 
