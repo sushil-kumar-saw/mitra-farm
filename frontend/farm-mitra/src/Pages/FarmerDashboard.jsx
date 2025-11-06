@@ -12,6 +12,7 @@ const FarmerDashboard = () => {
   const [wasteRecycled, setWasteRecycled] = useState(0);
   const [activeListings, setActiveListings] = useState(0);
   const [wasteListings, setWasteListings] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -189,10 +190,27 @@ const FarmerDashboard = () => {
     }
   };
 
+  // Fetch inquiries (purchases on farmer's listings)
+  const fetchInquiries = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/farmer/inquiries`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch inquiries');
+      const data = await response.json();
+      if (data.success) {
+        setInquiries(data.inquiries || []);
+      }
+    } catch (err) {
+      console.error('Error fetching inquiries:', err);
+      setError('Failed to load inquiries');
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchStats(), fetchListings()]);
+      await Promise.all([fetchStats(), fetchListings(), fetchInquiries()]);
       setLoading(false);
     };
     loadData();
@@ -529,35 +547,108 @@ const FarmerDashboard = () => {
         {activeTab === 'inquiries' && (
           <div style={styles.card}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '24px' }}>Recent Inquiries</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {[
-                { buyer: 'Green Energy Corp', product: 'Rice Husk - 15 tons', message: 'Interested in bulk purchase for biofuel production', time: '2 hours ago', status: 'new' },
-                { buyer: 'EcoPackaging Ltd', product: 'Sugarcane Bagasse - 10 tons', message: 'Need samples for packaging material testing', time: '5 hours ago', status: 'replied' }
-              ].map((inquiry, idx) => (
-                <div key={idx} style={{ padding: '16px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                    <div>
-                      <h4 style={{ fontWeight: '600', marginBottom: '4px' }}>{inquiry.buyer}</h4>
-                      <p style={{ fontSize: '14px', color: '#6b7280' }}>{inquiry.product}</p>
+            {inquiries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                <MessageCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <p>No inquiries yet. When buyers purchase your listings, they will appear here.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {inquiries.map((inquiry) => {
+                  const timeAgo = inquiry.createdAt 
+                    ? new Date(inquiry.createdAt).toLocaleDateString() + ' ' + 
+                      new Date(inquiry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Recently';
+                  
+                  const isMessageInquiry = inquiry.type === 'inquiry';
+                  
+                  return (
+                    <div key={inquiry.id} style={{ padding: '16px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                        <div>
+                          <h4 style={{ fontWeight: '600', marginBottom: '4px' }}>
+                            {inquiry.buyerName}
+                            {isMessageInquiry && <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>(Inquiry)</span>}
+                          </h4>
+                          <p style={{ fontSize: '14px', color: '#6b7280' }}>{inquiry.product}</p>
+                          {inquiry.totalAmount && (
+                            <p style={{ fontSize: '14px', color: '#16a34a', fontWeight: '500', marginTop: '4px' }}>
+                              Amount: ₹{inquiry.totalAmount.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                        <span style={{
+                          padding: '4px 12px',
+                          fontSize: '12px',
+                          borderRadius: '12px',
+                          backgroundColor: inquiry.status === 'new' ? '#dbeafe' : inquiry.status === 'confirmed' || inquiry.status === 'replied' ? '#fef3c7' : '#dcfce7',
+                          color: inquiry.status === 'new' ? '#1d4ed8' : inquiry.status === 'confirmed' || inquiry.status === 'replied' ? '#92400e' : '#166534',
+                          fontWeight: '500'
+                        }}>
+                          {inquiry.purchaseStatus || inquiry.status}
+                        </span>
+                      </div>
+                      <p style={{ marginBottom: '12px', color: '#374151' }}>{inquiry.message}</p>
+
+                      {isMessageInquiry && inquiry.replies && inquiry.replies.length > 0 && (
+                        <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '8px', marginBottom: '12px' }}>
+                          <h5 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Your Reply:</h5>
+                          {inquiry.replies.map((reply, idx) => (
+                            <div key={idx} style={{ marginBottom: '8px' }}>
+                              <p style={{ fontSize: '14px', color: '#374151' }}>{reply.message}</p>
+                              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                                {new Date(reply.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', color: '#9ca3af' }}>{timeAgo}</span>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          {isMessageInquiry && (!inquiry.replies || inquiry.replies.length === 0) && (
+                            <button
+                              style={{ ...styles.button, ...styles.primaryButton }}
+                              onClick={() => {
+                                const replyMessage = prompt('Enter your reply:');
+                                if (replyMessage && replyMessage.trim()) {
+                                  fetch(`${API_BASE_URL}/farmer/inquiries/${inquiry.id}/reply`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ message: replyMessage })
+                                  })
+                                  .then(res => res.json())
+                                  .then(data => {
+                                    if (data.success) {
+                                      fetchInquiries();
+                                      alert('Reply sent!');
+                                    }
+                                  })
+                                  .catch(err => {
+                                    console.error('Error replying:', err);
+                                    alert('Failed to send reply');
+                                  });
+                                }
+                              }}
+                            >
+                              Reply
+                            </button>
+                          )}
+                          <button
+                            style={{ ...styles.button, ...styles.secondaryButton }}
+                            onClick={() => window.location.href = `mailto:${inquiry.buyerEmail}`}
+                          >
+                            Contact Buyer
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      fontSize: '12px', 
-                      borderRadius: '12px',
-                      backgroundColor: inquiry.status === 'new' ? '#dbeafe' : '#dcfce7',
-                      color: inquiry.status === 'new' ? '#1d4ed8' : '#166534'
-                    }}>
-                      {inquiry.status === 'new' ? 'New' : 'Replied'}
-                    </span>
-                  </div>
-                  <p style={{ marginBottom: '16px', color: '#374151' }}>{inquiry.message}</p>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button style={{ ...styles.button, ...styles.primaryButton }}>Reply</button>
-                    <button style={{ ...styles.button, ...styles.secondaryButton }}>View Details</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
