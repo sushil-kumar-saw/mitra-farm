@@ -13,6 +13,7 @@ const FarmerDashboard = () => {
   const [activeListings, setActiveListings] = useState(0);
   const [wasteListings, setWasteListings] = useState([]);
   const [inquiries, setInquiries] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -161,6 +162,18 @@ const FarmerDashboard = () => {
     }
   };
 
+  // Helper function to calculate time ago
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
+
   // Fetch farmer's listings
   const fetchListings = async () => {
     try {
@@ -200,6 +213,33 @@ const FarmerDashboard = () => {
       const data = await response.json();
       if (data.success) {
         setInquiries(data.inquiries || []);
+        // Transform inquiries into recent activity
+        const activities = (data.inquiries || []).slice(0, 5).map(inquiry => {
+          const timeAgo = inquiry.createdAt 
+            ? getTimeAgo(new Date(inquiry.createdAt))
+            : 'Recently';
+          
+          if (inquiry.type === 'purchase') {
+            return {
+              icon: DollarSign,
+              title: 'Payment Received',
+              desc: inquiry.totalAmount 
+                ? `₹${inquiry.totalAmount.toLocaleString()} for ${inquiry.product}`
+                : `Purchase for ${inquiry.product}`,
+              time: timeAgo,
+              color: '#16a34a'
+            };
+          } else {
+            return {
+              icon: MessageCircle,
+              title: 'New Inquiry',
+              desc: `${inquiry.buyerName} interested in ${inquiry.product}`,
+              time: timeAgo,
+              color: '#2563eb'
+            };
+          }
+        });
+        setRecentActivity(activities);
       }
     } catch (err) {
       console.error('Error fetching inquiries:', err);
@@ -523,24 +563,42 @@ const FarmerDashboard = () => {
         {activeTab === 'overview' && (
           <div style={styles.card}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '24px' }}>Recent Activity</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {[
-                { icon: DollarSign, title: 'Payment Received', desc: '₹15,000 for Sugarcane Bagasse', time: '2 hours ago', color: '#16a34a' },
-                { icon: MessageCircle, title: 'New Inquiry', desc: 'Green Energy Corp interested in Rice Husk', time: '5 hours ago', color: '#2563eb' },
-                { icon: Leaf, title: 'Carbon Impact', desc: 'You saved 145 kg CO₂ this week!', time: '1 day ago', color: '#16a34a' }
-              ].map((activity, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: `${activity.color}10`, borderRadius: '8px' }}>
-                  <div style={{ width: '40px', height: '40px', backgroundColor: `${activity.color}20`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <activity.icon size={20} color={activity.color} />
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                Loading activity...
+              </div>
+            ) : recentActivity.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                <MessageCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <p>No recent activity. When buyers purchase your listings or send inquiries, they will appear here.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {recentActivity.map((activity, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: `${activity.color}10`, borderRadius: '8px' }}>
+                    <div style={{ width: '40px', height: '40px', backgroundColor: `${activity.color}20`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <activity.icon size={20} color={activity.color} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: '500', marginBottom: '4px' }}>{activity.title}</p>
+                      <p style={{ fontSize: '14px', color: '#6b7280' }}>{activity.desc}</p>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>{activity.time}</span>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: '500', marginBottom: '4px' }}>{activity.title}</p>
-                    <p style={{ fontSize: '14px', color: '#6b7280' }}>{activity.desc}</p>
+                ))}
+                {carbonSaved > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: '#16a34a10', borderRadius: '8px' }}>
+                    <div style={{ width: '40px', height: '40px', backgroundColor: '#16a34a20', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Leaf size={20} color="#16a34a" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: '500', marginBottom: '4px' }}>Carbon Impact</p>
+                      <p style={{ fontSize: '14px', color: '#6b7280' }}>You saved {carbonSaved.toLocaleString()} kg CO₂ total!</p>
+                    </div>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>{activity.time}</span>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

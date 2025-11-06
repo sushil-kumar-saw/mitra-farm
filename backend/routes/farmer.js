@@ -32,43 +32,45 @@ router.get('/dashboard/stats', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Farmer profile not found' });
     }
 
-    // Get all listings for this farmer
+    // Get all listings for this farmer (for active listings count)
     const listings = await WasteListing.find({ farmerId });
-    
-    // Calculate stats
     const activeListings = listings.filter(l => l.status === 'Active').length;
-    const totalEarnings = listings
-      .filter(l => l.status === 'Sold')
-      .reduce((sum, listing) => {
-        const priceMatch = listing.price.match(/₹([\d,]+)/);
-        const quantityMatch = listing.quantity.match(/([\d.]+)/);
-        if (priceMatch && quantityMatch) {
-          const price = parseFloat(priceMatch[1].replace(/,/g, ''));
-          const quantity = parseFloat(quantityMatch[1]);
-          return sum + (price * quantity);
-        }
-        return sum;
-      }, 0);
+    
+    // Get all purchases for this farmer (for earnings, CO2, and waste recycled)
+    // Only count confirmed and completed purchases for accurate stats
+    const purchases = await Purchase.find({ 
+      farmerId,
+      status: { $in: ['Confirmed', 'Completed'] }
+    });
+    
+    // Calculate total earnings from purchases (using totalAmount field)
+    const totalEarnings = purchases.reduce((sum, purchase) => {
+      return sum + (purchase.totalAmount || 0);
+    }, 0);
 
-    // Calculate total CO2 saved
-    const totalCo2Saved = listings.reduce((sum, listing) => {
-      const co2Match = listing.carbonSaving?.match(/([\d.]+)/);
-      if (co2Match) {
-        return sum + parseFloat(co2Match[1]);
+    // Calculate total CO2 saved from purchases
+    const totalCo2Saved = purchases.reduce((sum, purchase) => {
+      if (purchase.carbonSaving) {
+        const co2Match = purchase.carbonSaving.match(/([\d.]+)/);
+        if (co2Match) {
+          return sum + parseFloat(co2Match[1]);
+        }
       }
       return sum;
     }, 0);
 
-    // Calculate total waste recycled (in tons)
-    const totalWasteRecycled = listings.reduce((sum, listing) => {
-      const quantityMatch = listing.quantity.match(/([\d.]+)/);
-      if (quantityMatch) {
-        const quantity = parseFloat(quantityMatch[1]);
-        // Convert to tons if in kg
-        if (listing.quantity.toLowerCase().includes('kg')) {
-          return sum + (quantity / 1000);
+    // Calculate total waste recycled (in tons) from purchases
+    const totalWasteRecycled = purchases.reduce((sum, purchase) => {
+      if (purchase.quantity) {
+        const quantityMatch = purchase.quantity.match(/([\d.]+)/);
+        if (quantityMatch) {
+          const quantity = parseFloat(quantityMatch[1]);
+          // Convert to tons if in kg
+          if (purchase.quantity.toLowerCase().includes('kg')) {
+            return sum + (quantity / 1000);
+          }
+          return sum + quantity;
         }
-        return sum + quantity;
       }
       return sum;
     }, 0);
