@@ -13,8 +13,11 @@ const Login = () => {
   };
 const handleSubmit = async (e) => {
   e.preventDefault();
+  setError(""); // Clear previous errors
   try {
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+    console.log('Attempting login to:', `${API_BASE_URL}/auth/login`);
+    
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -23,7 +26,12 @@ const handleSubmit = async (e) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (parseError) {
+        errorData = { message: `Server error: ${response.status} ${response.statusText}` };
+      }
       setError(errorData.message || "Login failed");
       return;
     }
@@ -36,7 +44,12 @@ const handleSubmit = async (e) => {
       setError(data.message || "Login failed");
     }
   } catch (error) {
-    setError("Network error");
+    console.error("Login error:", error);
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      setError("Cannot connect to server. Please ensure the backend server is running on port 3000.");
+    } else {
+      setError(`Network error: ${error.message}`);
+    }
   }
 };
 

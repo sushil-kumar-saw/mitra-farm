@@ -15,28 +15,42 @@ const Register = () => {
 
 const handleSubmit = async (e) => {
   e.preventDefault();
+  setError(""); // Clear previous errors
   try {
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {  // note the /api prefix
+    console.log('Attempting registration to:', `${API_BASE_URL}/auth/register`);
+    
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ ...formData, role }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (parseError) {
+        errorData = { message: `Server error: ${response.status} ${response.statusText}` };
+      }
       setError(errorData.message || "Registration failed");
       return;
     }
 
     const data = await response.json();
     if (data.success) {
-      navigate("/login");
+      navigate("/auth/login");
     } else {
       setError(data.message || "Registration failed");
     }
   } catch (error) {
-    setError("Network error");
+    console.error("Registration error:", error);
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      setError("Cannot connect to server. Please ensure the backend server is running on port 3000.");
+    } else {
+      setError(`Network error: ${error.message}`);
+    }
   }
 };
 

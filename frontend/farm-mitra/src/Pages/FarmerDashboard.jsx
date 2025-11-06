@@ -10,18 +10,17 @@ const FarmerDashboard = () => {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [carbonSaved, setCarbonSaved] = useState(0);
   const [wasteRecycled, setWasteRecycled] = useState(0);
-  const [wasteListings, setWasteListings] = useState([
-    { id: 1, type: 'Rice Husk', quantity: '50 tons', price: '₹8,500/ton', location: 'Punjab', status: 'Active', inquiries: 12, co2Savings: '145 kg CO₂', image: '🌾' },
-    { id: 2, type: 'Sugarcane Bagasse', quantity: '30 tons', price: '₹6,200/ton', location: 'Maharashtra', status: 'Sold', inquiries: 8, co2Savings: '98 kg CO₂', image: '🎋' },
-    { id: 3, type: 'Wheat Straw', quantity: '25 tons', price: '₹4,800/ton', location: 'Haryana', status: 'Active', inquiries: 5, co2Savings: '76 kg CO₂', image: '🌾' }
-  ]);
+  const [activeListings, setActiveListings] = useState(0);
+  const [wasteListings, setWasteListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [location, setLocation] = useState("");
   const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzerError, setAnalyzerError] = useState("");
 
   const styles = {
     container: {
@@ -139,19 +138,64 @@ const FarmerDashboard = () => {
     }
   };
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+  // Fetch dashboard stats
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/farmer/dashboard/stats`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      const data = await response.json();
+      if (data.success) {
+        setTotalEarnings(data.stats.totalEarnings);
+        setCarbonSaved(data.stats.carbonSaved);
+        setWasteRecycled(data.stats.wasteRecycled);
+        setActiveListings(data.stats.activeListings);
+      }
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+      setError('Failed to load dashboard stats');
+    }
+  };
+
+  // Fetch farmer's listings
+  const fetchListings = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/farmer/listings`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch listings');
+      const data = await response.json();
+      if (data.success) {
+        // Transform API data to match component format
+        const transformedListings = data.listings.map(listing => ({
+          id: listing._id,
+          type: listing.wasteType,
+          quantity: listing.quantity,
+          price: listing.price,
+          location: listing.location,
+          status: listing.status,
+          inquiries: listing.inquiries || 0,
+          co2Savings: listing.carbonSaving || listing.co2Footprint || '0 kg CO₂',
+          image: listing.image || '🌾'
+        }));
+        setWasteListings(transformedListings);
+      }
+    } catch (err) {
+      console.error('Error fetching listings:', err);
+      setError('Failed to load listings');
+    }
+  };
+
   useEffect(() => {
-    const animateCounter = (setter, target, duration = 2000) => {
-      let start = 0;
-      const increment = target / (duration / 16);
-      const timer = setInterval(() => {
-        start += increment;
-        if (start >= target) { setter(target); clearInterval(timer); } 
-        else { setter(Math.floor(start)); }
-      }, 16);
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchStats(), fetchListings()]);
+      setLoading(false);
     };
-    animateCounter(setTotalEarnings, 45750);
-    animateCounter(setCarbonSaved, 2340);
-    animateCounter(setWasteRecycled, 156);
+    loadData();
   }, []);
 
   const sampleAnalysis = {
@@ -172,36 +216,62 @@ const FarmerDashboard = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!description || !amount) { setError("Please enter description and amount"); return; }
-    setError(""); setLoading(true);
+    if (!description || !amount) { setAnalyzerError("Please enter description and amount"); return; }
+    setAnalyzerError(""); setAnalyzing(true);
     setTimeout(() => {
       try { 
         const analysis = analyzeWithSampleData(); 
         setResult(analysis); 
       } catch (e) { 
-        setError("Analysis failed"); 
+        setAnalyzerError("Analysis failed"); 
       } finally { 
-        setLoading(false); 
+        setAnalyzing(false); 
       }
     }, 1500);
   };
 
-  const addToListings = () => {
+  const addToListings = async () => {
     if (!result) return;
-    const newListing = { 
-      id: wasteListings.length + 1, 
-      type: description.charAt(0).toUpperCase() + description.slice(1), 
-      quantity: `${amount} kg`, 
-      price: result.mspPrice, 
-      location: location || 'Not specified', 
-      status: 'Active', 
-      inquiries: 0, 
-      co2Savings: result.totalCo2Footprint, 
-      image: '🌱' 
-    };
-    setWasteListings(prev => [...prev, newListing]);
-    setDescription(""); setAmount(""); setLocation(""); setResult(null);
-    setActiveTab('listings'); setShowAnalyzer(false);
+    try {
+      const listingData = {
+        wasteType: description.charAt(0).toUpperCase() + description.slice(1),
+        quantity: `${amount} kg`,
+        price: result.mspPrice,
+        location: location || 'Not specified',
+        status: 'Active',
+        carbonSaving: result.totalCo2Footprint,
+        co2Footprint: result.totalCo2Footprint,
+        category: result.category,
+        expectedProcess: result.expectedProcess,
+        image: '🌱',
+        description: description
+      };
+
+      const response = await fetch(`${API_BASE_URL}/farmer/listings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(listingData)
+      });
+
+      if (!response.ok) throw new Error('Failed to create listing');
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh listings and stats
+        await fetchListings();
+        await fetchStats();
+        setDescription(""); 
+        setAmount(""); 
+        setLocation(""); 
+        setResult(null);
+        setActiveTab('listings'); 
+        setShowAnalyzer(false);
+      }
+    } catch (err) {
+      console.error('Error creating listing:', err);
+      setError('Failed to create listing');
+    }
   };
 
   if (showAnalyzer) {
@@ -251,15 +321,15 @@ const FarmerDashboard = () => {
 
           <button 
             onClick={handleAnalyze} 
-            disabled={loading} 
+            disabled={analyzing} 
             style={{ ...styles.button, ...styles.primaryButton, width: '100%', marginBottom: '16px' }}
           >
-            {loading ? "🔄 Analyzing..." : "🤖 Analyze Waste"}
+            {analyzing ? "🔄 Analyzing..." : "🤖 Analyze Waste"}
           </button>
 
-          {error && (
+          {analyzerError && (
             <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-              {error}
+              {analyzerError}
             </div>
           )}
 
@@ -311,6 +381,11 @@ const FarmerDashboard = () => {
       </header>
 
       <div style={styles.main}>
+        {error && (
+          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+            {error}
+          </div>
+        )}
         <div style={{ marginBottom: '32px' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '8px' }}>Welcome back ! 🌱</h2>
           <p style={{ color: '#6b7280' }}>Transform your agricultural waste into sustainable income.</p>
@@ -321,7 +396,7 @@ const FarmerDashboard = () => {
             { icon: DollarSign, value: `₹${totalEarnings.toLocaleString()}`, label: 'Total Earnings', color: '#16a34a' },
             { icon: Recycle, value: `${carbonSaved.toLocaleString()} kg`, label: 'CO₂ Saved', color: '#2563eb' },
             { icon: Package, value: wasteRecycled, label: 'Tons Recycled', color: '#ea580c' },
-            { icon: BarChart3, value: wasteListings.filter(l => l.status === 'Active').length, label: 'Active Listings', color: '#7c3aed' }
+            { icon: BarChart3, value: activeListings, label: 'Active Listings', color: '#7c3aed' }
           ].map((stat, idx) => (
             <div key={idx} style={styles.statCard}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -369,9 +444,18 @@ const FarmerDashboard = () => {
               </button>
             </div>
             
-            <div style={styles.listingsGrid}>
-              {wasteListings.map(listing => (
-                <div key={listing.id} style={styles.card}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                Loading listings...
+              </div>
+            ) : wasteListings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                No listings yet. Create your first listing!
+              </div>
+            ) : (
+              <div style={styles.listingsGrid}>
+                {wasteListings.map(listing => (
+                  <div key={listing.id} style={styles.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div style={{ fontSize: '2rem' }}>{listing.image}</div>
                     <span style={{ 
@@ -413,7 +497,8 @@ const FarmerDashboard = () => {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 

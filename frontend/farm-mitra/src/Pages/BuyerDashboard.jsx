@@ -27,43 +27,82 @@ const BuyerDashboard = () => {
   const [activeTrans, setActiveTrans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
+  const [wasteListings, setWasteListings] = useState([]);
+  const [error, setError] = useState("");
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+  // Fetch buyer dashboard stats
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/buyer/dashboard/stats`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      const data = await response.json();
+      if (data.success) {
+        setCarbonSaved(data.stats.carbonSaved);
+        setTotalPurchases(data.stats.totalPurchases);
+        setActiveTrans(data.stats.activeTransactions);
+      }
+    } catch (err) {
+      console.error('Error fetching buyer stats:', err);
+      setError('Failed to load dashboard stats');
+    }
+  };
+
+  // Fetch marketplace listings
+  const fetchMarketplaceListings = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/buyer/marketplace`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch listings');
+      const data = await response.json();
+      if (data.success) {
+        // Transform API data to match component format
+        const transformedListings = data.listings.map((listing, idx) => ({
+          id: listing._id || idx + 1,
+          farmer: listing.farmerName || (listing.farmerId?.name || 'Unknown'),
+          location: listing.location,
+          wasteType: listing.wasteType,
+          quantity: listing.quantity,
+          price: listing.price,
+          carbonSaving: listing.carbonSaving || listing.co2Footprint || '0 kg CO₂',
+          image: listing.image || './public/images/istockphoto-607884592-612x612.jpg',
+          rating: listing.rating || 4.5,
+          distance: listing.distance || 'N/A',
+          freshness: listing.createdAt ? new Date(listing.createdAt).toLocaleDateString() : 'Unknown',
+          tags: listing.tags || []
+        }));
+        setWasteListings(transformedListings);
+      }
+    } catch (err) {
+      console.error('Error fetching marketplace listings:', err);
+      setError('Failed to load marketplace listings');
+    }
+  };
 
   useEffect(() => {
-    const timer1 = setInterval(() => setCarbonSaved(prev => (prev < 2845 ? prev + 47 : 2845)), 50);
-    const timer2 = setInterval(() => setTotalPurchases(prev => (prev < 156 ? prev + 3 : 156)), 80);
-    const timer3 = setInterval(() => setActiveTrans(prev => (prev < 23 ? prev + 1 : 23)), 120);
-    const loadingTimer = setTimeout(() => setIsLoading(false), 1500);
-
-    return () => {
-      clearInterval(timer1);
-      clearInterval(timer2);
-      clearInterval(timer3);
-      clearTimeout(loadingTimer);
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchStats(), fetchMarketplaceListings()]);
+      setIsLoading(false);
     };
+    loadData();
   }, []);
 
- const wasteListings = [
-  { id: 1, farmer: "Rajesh Kumar", location: "Punjab, IN", wasteType: "Rice Husk", quantity: "500 kg", price: "₹15/kg", carbonSaving: "2.3 tons CO₂", image: "./public/images/istockphoto-607884592-612x612.jpg", rating: 4.8, distance: "12 km", freshness: "2 days ago", tags: ["Organic","Premium"] },
-  { id: 2, farmer: "Priya Sharma", location: "Haryana, IN", wasteType: "Wheat Straw", quantity: "750 kg", price: "₹12/kg", carbonSaving: "3.1 tons CO₂", image: "./public/images/wheat-straw.jpg", rating: 4.9, distance: "8 km", freshness: "1 day ago", tags: ["Bulk","Quality"] },
-  { id: 3, farmer: "Amit Patel", location: "Gujarat, IN", wasteType: "Sugarcane Bagasse", quantity: "1200 kg", price: "₹18/kg", carbonSaving: "4.7 tons CO₂", image: "./public/images/sugar-cane.jpg", rating: 4.7, distance: "25 km", freshness: "3 hours ago", tags: ["Fresh","Bulk"] },
-  { id: 4, farmer: "Sunita Verma", location: "Uttar Pradesh, IN", wasteType: "Cotton Stalks", quantity: "400 kg", price: "₹10/kg", carbonSaving: "1.5 tons CO₂", image: "./public/images/cotton.jpg", rating: 4.3, distance: "18 km", freshness: "5 hours ago", tags: ["Organic"] },
-  { id: 5, farmer: "Karan Singh", location: "Rajasthan, IN", wasteType: "Corn Cob", quantity: "600 kg", price: "₹14/kg", carbonSaving: "2.0 tons CO₂", image: "./public/images/corn.jpg", rating: 4.5, distance: "10 km", freshness: "1 day ago", tags: ["Quality","Bulk"] },
-  { id: 6, farmer: "Neha Joshi", location: "Punjab, IN", wasteType: "Rice Husk", quantity: "650 kg", price: "₹16/kg", carbonSaving: "2.8 tons CO₂", image: "./public/images/istockphoto-607884592-612x612.jpg", rating: 4.6, distance: "15 km", freshness: "3 days ago", tags: ["Premium"] },
-  { id: 7, farmer: "Vikram Malhotra", location: "Haryana, IN", wasteType: "Wheat Straw", quantity: "800 kg", price: "₹13/kg", carbonSaving: "3.3 tons CO₂", image: "./public/images/wheat-straw.jpg", rating: 4.8, distance: "9 km", freshness: "2 days ago", tags: ["Bulk"] },
-  { id: 8, farmer: "Meena Gupta", location: "Gujarat, IN", wasteType: "Sugarcane Bagasse", quantity: "1100 kg", price: "₹17/kg", carbonSaving: "4.2 tons CO₂", image: "./public/images/sugar-cane.jpg", rating: 4.4, distance: "28 km", freshness: "4 hours ago", tags: ["Fresh"] },
-  { id: 9, farmer: "Ramesh Yadav", location: "Uttar Pradesh, IN", wasteType: "Cotton Stalks", quantity: "450 kg", price: "₹11/kg", carbonSaving: "1.7 tons CO₂", image: "./public/images/cotton.jpg", rating: 4.1, distance: "20 km", freshness: "6 hours ago", tags: ["Organic"] },
-  { id: 10, farmer: "Anjali Desai", location: "Rajasthan, IN", wasteType: "Corn Cob", quantity: "550 kg", price: "₹13/kg", carbonSaving: "1.8 tons CO₂", image: "./public/images/corn.jpg", rating: 4.6, distance: "11 km", freshness: "2 days ago", tags: ["Quality"] },
-  { id: 11, farmer: "Suresh Patil", location: "Maharashtra, IN", wasteType: "Rice Husk", quantity: "700 kg", price: "₹15/kg", carbonSaving: "3.0 tons CO₂", image: "./public/images/istockphoto-607884592-612x612.jpg", rating: 4.7, distance: "14 km", freshness: "1 day ago", tags: ["Organic","Premium"] },
-  { id: 12, farmer: "Pooja Reddy", location: "Telangana, IN", wasteType: "Wheat Straw", quantity: "900 kg", price: "₹14/kg", carbonSaving: "3.5 tons CO₂", image: "./public/images/wheat-straw.jpg", rating: 4.9, distance: "7 km", freshness: "3 days ago", tags: ["Bulk","Quality"] },
-  { id: 13, farmer: "Manoj Kumar", location: "Bihar, IN", wasteType: "Sugarcane Bagasse", quantity: "1150 kg", price: "₹19/kg", carbonSaving: "5.0 tons CO₂", image: "./public/images/sugar-cane.jpg", rating: 4.8, distance: "22 km", freshness: "2 hours ago", tags: ["Fresh","Bulk"] },
-  { id: 14, farmer: "Kavita Singh", location: "Jharkhand, IN", wasteType: "Cotton Stalks", quantity: "500 kg", price: "₹12/kg", carbonSaving: "1.9 tons CO₂", image: "./public/images/cotton.jpg", rating: 4.2, distance: "17 km", freshness: "5 hours ago", tags: ["Organic"] },
-  { id: 15, farmer: "Rohit Sharma", location: "Madhya Pradesh, IN", wasteType: "Corn Cob", quantity: "650 kg", price: "₹15/kg", carbonSaving: "2.1 tons CO₂", image: "./public/images/corn.jpg", rating: 4.5, distance: "13 km", freshness: "1 day ago", tags: ["Bulk","Quality"] },
-  { id: 16, farmer: "Sanjay Joshi", location: "Punjab, IN", wasteType: "Rice Husk", quantity: "520 kg", price: "₹16/kg", carbonSaving: "2.5 tons CO₂", image: "./public/images/istockphoto-607884592-612x612.jpg", rating: 4.6, distance: "12 km", freshness: "3 days ago", tags: ["Premium"] },
-  { id: 17, farmer: "Neelam Verma", location: "Haryana, IN", wasteType: "Wheat Straw", quantity: "780 kg", price: "₹13/kg", carbonSaving: "3.2 tons CO₂", image: "./public/images/wheat-straw.jpg", rating: 4.7, distance: "8 km", freshness: "1 day ago", tags: ["Bulk"] },
-  { id: 18, farmer: "Ajay Patel", location: "Gujarat, IN", wasteType: "Sugarcane Bagasse", quantity: "1250 kg", price: "₹18/kg", carbonSaving: "4.8 tons CO₂", image: "./public/images/sugar-cane.jpg", rating: 4.5, distance: "26 km", freshness: "4 hours ago", tags: ["Fresh"] },
-  { id: 19, farmer: "Sheetal Yadav", location: "Uttar Pradesh, IN", wasteType: "Cotton Stalks", quantity: "480 kg", price: "₹11/kg", carbonSaving: "1.6 tons CO₂", image: "./public/images/cotton.jpg", rating: 4.3, distance: "19 km", freshness: "6 hours ago", tags: ["Organic"] },
-  { id: 20, farmer: "Deepak Desai", location: "Rajasthan, IN", wasteType: "Corn Cob", quantity: "580 kg", price: "₹14/kg", carbonSaving: "1.9 tons CO₂", image: "./public/images/corn.jpg", rating: 4.4, distance: "10 km", freshness: "2 days ago", tags: ["Quality"] }
-];
+  // Handle inquiry/increment view count
+  const handleInquire = async (listingId) => {
+    try {
+      await fetch(`${API_BASE_URL}/buyer/listings/${listingId}/inquire`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (err) {
+      console.error('Error updating inquiry:', err);
+    }
+  };
 
   const filterOptions = [
     { id:'rice-husk', label:'Rice Husk' },
@@ -274,6 +313,11 @@ const BuyerDashboard = () => {
 
   return (
     <div style={containerStyle}>
+      {error && (
+        <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px', margin: '16px', borderRadius: '8px' }}>
+          {error}
+        </div>
+      )}
       <header style={headerStyle}>
         <div style={logoSectionStyle}>
           <Leaf size={24} />
@@ -545,7 +589,10 @@ const BuyerDashboard = () => {
                       </p>
                       <button 
                         style={favoriteButtonStyle(favorites.has(listing.id))}
-                        onClick={() => toggleFavorite(listing.id)}
+                        onClick={() => {
+                          toggleFavorite(listing.id);
+                          handleInquire(listing.id);
+                        }}
                       >
                         <Heart size={16} />
                         {favorites.has(listing.id) ? 'Remove Order' : 'Add to Order'}
