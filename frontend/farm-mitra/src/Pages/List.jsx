@@ -9,7 +9,6 @@ const AgriculturalWasteAnalyzer = () => {
   const [error, setError] = useState("");
   const [apiKey, setApiKey] = useState("");
 
-  // Sample data for demonstration (in real app, this would come from AI)
   const sampleAnalysis = {
     "rice straw": {
       category: "crop residue",

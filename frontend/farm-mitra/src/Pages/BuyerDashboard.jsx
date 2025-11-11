@@ -913,15 +913,14 @@ const BuyerDashboard = () => {
               <div style={listingsGridStyle}>
                 {cart.map(listing => (
                   <div key={listing._id || listing.id} style={listingCardStyle}>
-                    <div style={{
-                      ...listingImageStyle,
-                      display: 'flex',
-                      backgroundColor: '#e8f5e8',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '48px'
-                    }}>
-                      {listing.image || '🌾'}
+                    {/* Render actual image in checkout (use normalizeImagePath and fallback) */}
+                    <div style={{ backgroundColor: '#e8f5e8' }}>
+                      <img
+                        src={normalizeImagePath(listing.image) || getDefaultImage(listing.wasteType)}
+                        alt={listing.wasteType || 'Listing image'}
+                        style={{ ...listingImageStyle, display: 'block' }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = '/images/istockphoto-607884592-612x612.jpg'; }}
+                      />
                     </div>
                     <div style={listingDetailsStyle}>
                       <h4 style={{ marginBottom: '12px', color: '#1e293b' }}>{listing.wasteType}</h4>
